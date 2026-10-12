@@ -116,7 +116,7 @@ const yaw = computed(() => props.state.joints[0].angle * 0.06)
         </div>
         <div
           class="bar"
-          :class="{ bad: !state.plannerOk }"
+          :class="{ bad: state.runState === 'fault' }"
           role="progressbar"
           :aria-valuenow="state.taskProgress"
           aria-valuemin="0"
@@ -138,11 +138,9 @@ const yaw = computed(() => props.state.joints[0].angle * 0.06)
       </div>
       <div>
         <p class="eyebrow">规划结果</p>
-        <strong class="plan-status" :class="state.plannerOk ? 'ok' : 'bad'">{{ state.plannerStatus }}</strong>
-        <p v-if="state.waypoints" class="plan-meta">
-          {{ state.plannerName }} · {{ state.waypoints }} 路点 · {{ (state.planMs / 1000).toFixed(2) }} s
-        </p>
-        <p v-else class="plan-meta">{{ state.plannerName }} · 等待下发</p>
+        <strong class="plan-status" :class="state.plannerOk ? 'ok' : 'bad'" :title="state.plannerName">{{ state.plannerStatus }}</strong>
+        <p v-if="state.waypoints" class="plan-meta">{{ state.waypoints }} 路点 · {{ (state.planMs / 1000).toFixed(2) }} s</p>
+        <p v-else class="plan-meta">等待下发</p>
       </div>
     </article>
   </section>
