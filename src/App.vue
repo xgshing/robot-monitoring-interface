@@ -6,10 +6,12 @@ import JointColumn from './components/JointColumn.vue'
 import RobotStage from './components/RobotStage.vue'
 import SidePanel from './components/SidePanel.vue'
 import WindowChrome from './components/WindowChrome.vue'
+import { useRosLive } from './composables/useRosLive'
 import { useRobotSimulation } from './composables/useSimulation'
 import { formatNum, formatPct } from './format'
 
-const { state, toggleLink, toggleRun, acknowledge, selectJoint, snapshot } = useRobotSimulation()
+const { state, toggleRun, acknowledge, selectJoint, snapshot, pushLog } = useRobotSimulation()
+const bridge = useRosLive(state, pushLog)
 const ready = ref(false)
 
 onMounted(() => {
@@ -50,11 +52,30 @@ const runTone = computed(() => {
 })
 
 const runLabel = computed(() => {
-  if (!state.connected) return '待机'
+  if (!state.connected || state.runState === 'idle') return '待机'
   if (state.runState === 'fault') return '故障'
   if (state.runState === 'paused') return '已暂停'
   return '执行中'
 })
+
+const linkLabel = computed(() => {
+  if (state.linkMode === 'ros') return state.connected ? '已连接' : '连接中'
+  return '模拟'
+})
+
+const linkTone = computed(() => (state.linkMode === 'ros' && state.connected ? 'ok' : 'idle'))
+
+const subtitle = computed(() =>
+  state.linkMode === 'ros' ? '已接入 Gazebo / MoveIt' : '模拟数据 · 等待 rosbridge',
+)
+
+function onToggleRun() {
+  if (state.linkMode === 'ros') {
+    pushLog('info', '页面只读', '运行状态来自 MoveIt 与关节控制器，请在规划终端操作')
+    return
+  }
+  toggleRun()
+}
 
 function tone(delta: number, upIsBad: boolean) {
   const rising = delta >= 0
@@ -67,31 +88,36 @@ function tone(delta: number, upIsBad: boolean) {
   <div class="space">
     <div class="stars" aria-hidden="true"></div>
     <div class="window">
-      <WindowChrome :clock="state.clock" :connected="state.connected" />
+      <WindowChrome
+        :clock="state.clock"
+        :connected="state.linkMode === 'ros' && state.connected"
+        :model="state.robotName"
+        :url="state.linkMode === 'ros' ? bridge.url : 'sim://franka-panda'"
+      />
       <main class="console">
         <section class="welcome">
           <div>
             <h1>欢迎回来</h1>
-            <p>回到工位控制台</p>
+            <p>{{ subtitle }}</p>
           </div>
           <div class="status-row">
             <button
               type="button"
               class="status-pill"
-              :class="state.connected ? 'ok' : 'bad'"
-              title="连接或断开控制器"
-              @click="toggleLink"
+              :class="linkTone"
+              title="连接 rosbridge，或切回模拟数据"
+              @click="bridge.toggleLink"
             >
               <i></i>
-              <span>{{ state.connected ? '已连接' : '未连接' }}</span>
-              <em>{{ state.connected ? `${state.latencyMs} ms` : '—' }}</em>
+              <span>{{ linkLabel }}</span>
+              <em>{{ state.linkMode === 'ros' ? `${state.latencyMs} ms` : '—' }}</em>
             </button>
             <button
               type="button"
               class="status-pill"
               :class="runTone"
               title="暂停、继续或确认故障"
-              @click="toggleRun"
+              @click="onToggleRun"
             >
               <i></i>
               <span>{{ runLabel }}</span>
@@ -113,13 +139,13 @@ function tone(delta: number, upIsBad: boolean) {
 
         <JointColumn :state="state" @select="selectJoint" />
         <RobotStage :state="state" @ack="acknowledge" />
-        <SidePanel :state="state" @link="toggleLink" @run="toggleRun" @snapshot="snapshot" />
+        <SidePanel :state="state" @link="bridge.toggleLink" @run="onToggleRun" @snapshot="snapshot" />
         <ChartColumn :state="state" @select="selectJoint" />
         <EventLog :state="state" @ack="acknowledge" />
       </main>
       <div v-if="!ready" class="boot" role="status">
         <div class="boot-mark"></div>
-        <p>正在同步 TX2-140 控制器</p>
+        <p>正在同步 Franka Panda</p>
       </div>
     </div>
   </div>

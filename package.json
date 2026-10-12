@@ -2,7 +2,7 @@
   "name": "robot-monitoring-interface",
   "private": true,
   "version": "0.1.0",
-  "description": "工业风格六轴机器人监控控制台",
+  "description": "工业风格 Franka Panda 监控控制台",
   "type": "module",
   "scripts": {
     "dev": "vite",

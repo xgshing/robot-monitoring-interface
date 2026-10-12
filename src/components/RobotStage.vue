@@ -9,16 +9,20 @@ const props = defineProps<{
 
 const emit = defineEmits<{ ack: [] }>()
 
-const shoulder = computed(() => 26 + props.state.joints[1].angle * 0.55)
-const elbow = computed(() => -36 + (props.state.joints[2].angle - 46) * 0.62)
-const wrist = computed(() => props.state.joints[4].angle * 0.28)
-const yaw = computed(() => props.state.joints[0].angle * 0.06)
+function angleAt(index: number) {
+  return props.state.joints[index]?.angle ?? 0
+}
+
+const shoulder = computed(() => 26 + angleAt(1) * 0.55)
+const elbow = computed(() => -36 + (angleAt(2) - 46) * 0.62)
+const wrist = computed(() => angleAt(4) * 0.28)
+const yaw = computed(() => angleAt(0) * 0.06)
 </script>
 
 <template>
   <section class="stage">
     <div class="stage-view">
-      <svg class="arm-svg" viewBox="0 0 460 500" role="img" aria-label="六轴机械臂姿态">
+      <svg class="arm-svg" viewBox="0 0 460 500" role="img" aria-label="七轴机械臂姿态">
         <defs>
           <radialGradient id="tx-spot" cx="50%" cy="42%" r="55%">
             <stop offset="0%" stop-color="rgba(126, 160, 214, 0.16)" />

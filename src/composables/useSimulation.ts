@@ -3,7 +3,7 @@ import { formatClock } from '../format'
 import type { ConsoleState, JointReading, LedTone, LogLevel, PhaseKind, Pose } from '../types'
 import { JOINTS } from '../types'
 
-const HOME = [0, -22, 46, 2, 28, 0]
+const HOME = [0, -22, 46, 2, 28, 0, 0]
 const HOME_POSE: Pose = { x: 468, y: 12, z: 612, rx: 180, ry: 0, rz: 90 }
 const BASE_EMERGENCY = 894 / 1.003
 const BASE_HEALTH = 944 / 1.7209
@@ -39,7 +39,7 @@ const CYCLE: Step[] = [
     kind: 'plan',
     ms: 2000,
     task: '托盘 A3 → 工位 B2',
-    to: [6, -16, 42, 4, 26, 4],
+    to: [6, -16, 42, 4, 26, 4, 0],
     pose: { x: 510, y: 36, z: 470, rx: 180, ry: 1, rz: 94 },
     level: 'ok',
     title: '路径规划完成',
@@ -54,7 +54,7 @@ const CYCLE: Step[] = [
     kind: 'move',
     ms: 3600,
     task: '托盘 A3 → 工位 B2',
-    to: [36, 22, 68, 10, 46, 16],
+    to: [36, 22, 68, 10, 46, 16, 0],
     pose: { x: 636.5, y: 162.4, z: 228, rx: 178.5, ry: 4.2, rz: 112 },
     level: 'info',
     title: '接近抓取点',
@@ -69,7 +69,7 @@ const CYCLE: Step[] = [
     kind: 'grip',
     ms: 1600,
     task: '托盘 A3 → 工位 B2',
-    to: [37, 28, 74, 8, 52, 16],
+    to: [37, 28, 74, 8, 52, 16, 0],
     pose: { x: 640.2, y: 166.1, z: 214.6, rx: 179.2, ry: 2.6, rz: 113.4 },
     level: 'ok',
     title: '夹爪闭合',
@@ -84,7 +84,7 @@ const CYCLE: Step[] = [
     kind: 'move',
     ms: 4000,
     task: '托盘 A3 → 工位 B2',
-    to: [-42, 8, 52, -14, 36, -18],
+    to: [-42, 8, 52, -14, 36, -18, 0],
     pose: { x: 318, y: -246.5, z: 360, rx: 180, ry: -2.4, rz: 64 },
     level: 'info',
     title: '搬运至工位 B2',
@@ -99,7 +99,7 @@ const CYCLE: Step[] = [
     kind: 'grip',
     ms: 1700,
     task: '托盘 A3 → 工位 B2',
-    to: [-48, 26, 70, -12, 50, -16],
+    to: [-48, 26, 70, -12, 50, -16, 0],
     pose: { x: 286.4, y: -268.2, z: 226.8, rx: 179.4, ry: 1.1, rz: 58.6 },
     level: 'ok',
     title: '工件已放下',
@@ -114,11 +114,11 @@ const CYCLE: Step[] = [
     kind: 'move',
     ms: 3200,
     task: '托盘 A3 → 工位 B2',
-    to: [0, -22, 46, 2, 28, 0],
+    to: [0, -22, 46, 2, 28, 0, 0],
     pose: { x: 468, y: 12, z: 612, rx: 180, ry: 0, rz: 90 },
     level: 'info',
     title: '返回待机位',
-    detail: '六轴回到循环起点',
+    detail: '七轴回到循环起点',
     planner: '无碰撞',
     ok: true,
     waypoints: 28,
@@ -129,7 +129,7 @@ const CYCLE: Step[] = [
     kind: 'idle',
     ms: 1400,
     task: '托盘 A3 → 工位 B2',
-    to: [0, -22, 46, 2, 28, 0],
+    to: [0, -22, 46, 2, 28, 0, 0],
     pose: { x: 468, y: 12, z: 612, rx: 180, ry: 0, rz: 90 },
     level: 'ok',
     title: '循环完成',
@@ -157,8 +157,8 @@ function makeJoints(): JointReading[] {
 
 function seedLogs(): ConsoleState['logs'] {
   const seeds: Array<{ offset: number; level: LogLevel; title: string; detail: string }> = [
-    { offset: -18 * 60_000, level: 'info', title: '班次开始', detail: 'TX2-140 控制器上电，加载单元 Cell 04' },
-    { offset: -16 * 60_000, level: 'ok', title: '关节零点校验通过', detail: '六轴回零完成，偏差小于 0.02°' },
+    { offset: -18 * 60_000, level: 'info', title: '班次开始', detail: 'Franka Panda 模拟循环启动，等待 rosbridge' },
+    { offset: -16 * 60_000, level: 'ok', title: '关节零点校验通过', detail: '七轴回零完成，偏差小于 0.02°' },
     { offset: -12 * 60_000, level: 'warn', title: '肘部温度告警', detail: 'J3 峰值 46.8°C，已计入本班次' },
     { offset: -9 * 60_000, level: 'warn', title: '基座振动偏高', detail: 'RMS 0.82 mm/s，超过观察阈值 0.70' },
     { offset: -6 * 60_000, level: 'error', title: '腕部跟随误差', detail: 'J5 误差 0.42°，伺服已自动复位' },
@@ -178,6 +178,8 @@ function seedLogs(): ConsoleState['logs'] {
 export function useRobotSimulation() {
   const state = reactive<ConsoleState>({
     connected: true,
+    linkMode: 'sim',
+    robotName: 'Franka Panda',
     latencyMs: 18,
     runState: 'running',
     clock: formatClock(),
@@ -386,7 +388,7 @@ export function useRobotSimulation() {
       motion += Math.abs(joint.velocity)
     })
     const moving = state.connected && !userHold && !inFault
-    const targetRpm = moving ? 1420 + (motion / 6) * 24 : 460
+    const targetRpm = moving ? 1420 + (motion / state.joints.length) * 24 : 460
     state.avgRpm += (targetRpm - state.avgRpm) * 0.12
 
     const maxTemp = Math.max(...state.joints.map((joint) => joint.temperature))
@@ -442,6 +444,7 @@ export function useRobotSimulation() {
   function step(dt: number) {
     now += dt
     state.clock = formatClock()
+    if (state.linkMode === 'ros') return
     if (state.connected) {
       state.latencyMs = Math.max(8, Math.round(16 + Math.sin(now / 700) * 6 + Math.random() * 4))
     }
@@ -491,6 +494,12 @@ export function useRobotSimulation() {
   }
 
   function acknowledge() {
+    if (state.linkMode === 'ros') {
+      state.faultMessage = null
+      if (state.runState === 'fault') state.runState = 'idle'
+      pushLog('info', '操作员确认告警', '已清除页面上的故障提示')
+      return
+    }
     if (inFault) {
       userHold = false
       clearFault(true)
@@ -525,5 +534,5 @@ export function useRobotSimulation() {
     window.clearInterval(timer)
   })
 
-  return { state, toggleLink, toggleRun, acknowledge, selectJoint, snapshot }
+  return { state, toggleLink, toggleRun, acknowledge, selectJoint, snapshot, pushLog }
 }

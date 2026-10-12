@@ -1,4 +1,5 @@
 export type RunState = 'running' | 'paused' | 'fault' | 'idle'
+export type LinkMode = 'sim' | 'ros'
 export type LogLevel = 'info' | 'ok' | 'warn' | 'error'
 export type LedTone = 'ok' | 'warn' | 'error' | 'off'
 export type PhaseKind = 'plan' | 'move' | 'grip' | 'idle'
@@ -6,18 +7,20 @@ export type PhaseKind = 'plan' | 'move' | 'grip' | 'idle'
 export interface JointSpec {
   id: string
   name: string
+  rosName: string
   min: number
   max: number
   color: string
 }
 
 export const JOINTS: JointSpec[] = [
-  { id: 'J1', name: '基座', min: -170, max: 170, color: '#9b8cff' },
-  { id: 'J2', name: '肩部', min: -120, max: 120, color: '#5eead4' },
-  { id: 'J3', name: '肘部', min: -150, max: 150, color: '#f5b942' },
-  { id: 'J4', name: '腕转', min: -180, max: 180, color: '#ff8fb8' },
-  { id: 'J5', name: '腕摆', min: -120, max: 120, color: '#7dd3fc' },
-  { id: 'J6', name: '法兰', min: -360, max: 360, color: '#c4b5fd' },
+  { id: 'J1', name: '基座', rosName: 'panda_joint1', min: -166, max: 166, color: '#9b8cff' },
+  { id: 'J2', name: '肩部', rosName: 'panda_joint2', min: -101, max: 101, color: '#5eead4' },
+  { id: 'J3', name: '肘部', rosName: 'panda_joint3', min: -166, max: 166, color: '#f5b942' },
+  { id: 'J4', name: '腕 1', rosName: 'panda_joint4', min: -176, max: -4, color: '#ff8fb8' },
+  { id: 'J5', name: '腕 2', rosName: 'panda_joint5', min: -166, max: 166, color: '#7dd3fc' },
+  { id: 'J6', name: '腕 3', rosName: 'panda_joint6', min: -1, max: 215, color: '#c4b5fd' },
+  { id: 'J7', name: '法兰', rosName: 'panda_joint7', min: -166, max: 166, color: '#86efac' },
 ]
 
 export interface Pose {
@@ -54,6 +57,8 @@ export interface PinState {
 
 export interface ConsoleState {
   connected: boolean
+  linkMode: LinkMode
+  robotName: string
   latencyMs: number
   runState: RunState
   clock: string

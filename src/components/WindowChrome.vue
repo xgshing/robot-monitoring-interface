@@ -2,6 +2,8 @@
 defineProps<{
   clock: string
   connected: boolean
+  model: string
+  url: string
 }>()
 </script>
 
@@ -17,13 +19,13 @@ defineProps<{
         <rect x="6" y="10" width="12" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8" />
         <path d="M8.5 10V7.8a3.5 3.5 0 0 1 7 0V10" fill="none" stroke="currentColor" stroke-width="1.8" />
       </svg>
-      <span>https://cell.local/monitor/tx2-140</span>
+      <span>{{ url }}</span>
     </div>
     <div class="model">
       <time class="clock">{{ clock }}</time>
       <span class="model-name">
         <i :class="connected ? 'ok' : 'bad'"></i>
-        Staubli TX2-140
+        {{ model }}
       </span>
     </div>
   </header>

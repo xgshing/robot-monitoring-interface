@@ -62,13 +62,13 @@ const gridOn = ref(false)
     </div>
 
     <div class="cam-actions">
-      <button type="button" :class="{ bad: !state.connected }" title="连接或断开控制器" @click="emit('link')">
+      <button type="button" :class="{ bad: !state.connected }" title="连接 rosbridge，或切回模拟数据" @click="emit('link')">
         <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
           <path d="M12 3v7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
           <path d="M7 6.5a7 7 0 1 0 10 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
         </svg>
       </button>
-      <button type="button" :class="{ ok: state.runState === 'running' }" title="暂停或继续任务" @click="emit('run')">
+      <button type="button" :class="{ ok: state.runState === 'running' }" title="暂停或继续模拟任务" @click="emit('run')">
         <svg v-if="state.runState === 'running'" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
           <path d="M7 6h3.2v12H7zM13.8 6H17v12h-3.2z" fill="currentColor" />
         </svg>
