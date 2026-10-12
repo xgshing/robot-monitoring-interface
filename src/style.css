@@ -220,10 +220,12 @@ h1, h2, h3, p { margin: 0; }
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 2px;
-  padding: 2px 0;
+  gap: 0;
+  padding: 0;
   overflow: auto;
+  scrollbar-width: none;
 }
+.joints::-webkit-scrollbar { width: 0; height: 0; }
 .joints.dim { opacity: 0.42; }
 .joint {
   text-align: left;
@@ -231,7 +233,7 @@ h1, h2, h3, p { margin: 0; }
   border: 0;
   border-left: 2px solid transparent;
   border-radius: 10px;
-  padding: 2px 8px 3px;
+  padding: 1px 8px 1px;
   min-width: 0;
   flex: none;
 }
@@ -239,11 +241,11 @@ h1, h2, h3, p { margin: 0; }
 .joint-name { color: var(--muted); font-size: 11px; letter-spacing: 0.04em; }
 .joint-angle {
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
-  line-height: 1.15;
+  line-height: 1.05;
 }
 .joint-angle small { font-size: 0.62em; margin-left: 1px; color: #c5d0de; font-weight: 500; }
 .joint-meta {
