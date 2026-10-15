@@ -49,7 +49,7 @@ ros2 launch rosbridge_server rosbridge_websocket_launch.xml
 
 左上角「模拟」表示还在用页面内的循环。点它会重试 rosbridge；连上后变成「已连接」，再点一次切回模拟。
 
-手臂外形使用本机 Gazebo Fuel 缓存里的 Panda 视觉网格，关节角和 Gazebo 共用 `/joint_states`。网格不放进仓库。Windows 上从 PowerShell 启动时，开发服务器会通过 WSL 找到：
+手臂外形使用本机 Gazebo Fuel 缓存里的 Panda 网格，材质按 Gazebo 里的浅灰外壳，不使用 RViz 的橙色贴图。关节角和 Gazebo 共用 `/joint_states`。网格不放进仓库。Windows 上从 PowerShell 启动时，开发服务器会通过 WSL 找到：
 
 `~/.gz/fuel/fuel.ignitionrobotics.org/openrobotics/models/panda with ignition position controller model/5`
 

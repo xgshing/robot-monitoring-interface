@@ -47,30 +47,73 @@ function draw() {
   renderer.render(scene, camera)
 }
 
+function shellMaterial(map?: THREE.Texture) {
+  return new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    map: map ?? null,
+    roughness: 0.64,
+    metalness: 0.05,
+  })
+}
+
+function gazeboAlbedo(source: THREE.Texture) {
+  const image = source.image as CanvasImageSource & { width?: number; height?: number }
+  const width = image.width || 1024
+  const height = image.height || 1024
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const context = canvas.getContext('2d', { willReadFrequently: true })
+  if (!context) return source
+  context.drawImage(image, 0, 0, width, height)
+  const frame = context.getImageData(0, 0, width, height)
+  const pixels = frame.data
+  for (let index = 0; index < pixels.length; index += 4) {
+    const red = pixels[index]
+    const green = pixels[index + 1]
+    const blue = pixels[index + 2]
+    const luminance = 0.299 * red + 0.587 * green + 0.114 * blue
+    const cool = blue > red + 12 && blue > green
+    if (luminance > 96 && !cool) {
+      const value = Math.min(244, Math.max(214, Math.round(228 + (luminance - 150) * 0.05)))
+      pixels[index] = value
+      pixels[index + 1] = value
+      pixels[index + 2] = Math.max(0, value - 1)
+    } else if (red > blue + 10 && red >= green - 4) {
+      const value = Math.round(luminance)
+      pixels[index] = value
+      pixels[index + 1] = value
+      pixels[index + 2] = value
+    }
+  }
+  context.putImageData(frame, 0, 0)
+  const next = new THREE.CanvasTexture(canvas)
+  next.colorSpace = THREE.SRGBColorSpace
+  next.flipY = false
+  next.anisotropy = 8
+  next.needsUpdate = true
+  source.dispose()
+  return next
+}
+
 async function loadMesh(name: string, loader: ColladaLoader, textures: Map<string, THREE.Texture>) {
   const collada = await loader.loadAsync(`/panda-model/meshes/visual/${name}.dae`)
   if (!collada) throw new Error(`缺少 ${name}.dae`)
   const wrapper = new THREE.Group()
   wrapper.rotation.x = Math.PI / 2
   wrapper.add(collada.scene)
-  const texture = textures.get(name)
   wrapper.updateWorldMatrix(true, true)
   const bounds = new THREE.Box3().setFromObject(wrapper)
   const extent = bounds.getSize(new THREE.Vector3())
   const maxDim = Math.max(extent.x, extent.y, extent.z)
   if (maxDim < 0.02) wrapper.scale.multiplyScalar(100)
+  const texture = textures.get(name)
   collada.scene.traverse((node) => {
     const mesh = node as THREE.Mesh
     if (!mesh.isMesh) return
-    const source = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
-    mesh.material = source.map((material) => {
-      const next = material.clone()
-      if (texture && 'map' in next) {
-        next.map = texture
-        if ('color' in next && next.color instanceof THREE.Color) next.color.set(0xffffff)
-      }
-      return next
-    })
+    const previous = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+    previous.forEach((material) => material.dispose())
+    mesh.material = shellMaterial(texture)
   })
   return wrapper
 }
@@ -91,9 +134,9 @@ async function boot() {
         const texture = await textureLoader.loadAsync(`/panda-model/materials/textures/${file}`)
         texture.colorSpace = THREE.SRGBColorSpace
         texture.flipY = false
-        textures.set(name, texture)
+        textures.set(name, gazeboAlbedo(texture))
       } catch {
-        // 贴图缺失时仍显示网格外形
+        // 贴图缺失时仍用浅灰外壳
       }
     }),
   )
@@ -172,12 +215,12 @@ async function boot() {
 
   scene = new THREE.Scene()
   scene.add(upright)
-  scene.add(new THREE.HemisphereLight(0xf7f9fc, 0x202838, 1.35))
-  const key = new THREE.DirectionalLight(0xffffff, 1.8)
-  key.position.set(1.6, 2.4, 1.8)
-  scene.add(key)
-  const fill = new THREE.DirectionalLight(0xb7c7dc, 0.7)
-  fill.position.set(-1.4, 1.2, -1)
+  scene.add(new THREE.HemisphereLight(0xffffff, 0xb7bdc4, 0.72))
+  const sun = new THREE.DirectionalLight(0xffffff, 2.4)
+  sun.position.set(0.6, 3.2, 1.4)
+  scene.add(sun)
+  const fill = new THREE.DirectionalLight(0xe7ebf0, 0.28)
+  fill.position.set(-1.5, 0.6, -1)
   scene.add(fill)
 
   camera = new THREE.PerspectiveCamera(30, 1, 0.01, 20)
@@ -192,6 +235,8 @@ async function boot() {
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
   renderer.setClearColor(0x000000, 0)
   renderer.outputColorSpace = THREE.SRGBColorSpace
+  renderer.toneMapping = THREE.ACESFilmicToneMapping
+  renderer.toneMappingExposure = 1.08
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
   host.value.appendChild(renderer.domElement)
   resize()
