@@ -18,8 +18,13 @@ const MESHES = ['link0', 'link1', 'link2', 'link3', 'link4', 'link5', 'link6', '
 let renderer: THREE.WebGLRenderer | null = null
 let scene: THREE.Scene | null = null
 let camera: THREE.PerspectiveCamera | null = null
+let robot: THREE.Object3D | null = null
 let frame = 0
 const spins: THREE.Object3D[] = []
+const viewOffset = new THREE.Vector3(0.85, 0.42, 0.72).normalize()
+const frameBox = new THREE.Box3()
+const frameSphere = new THREE.Sphere()
+const frameCenter = new THREE.Vector3()
 
 function pose(x: number, y: number, z: number, roll: number, pitch: number, yaw: number) {
   const group = new THREE.Group()
@@ -41,9 +46,29 @@ function applyAngles() {
   })
 }
 
+function frameRobot() {
+  if (!camera || !robot) return
+  robot.updateWorldMatrix(true, true)
+  frameBox.setFromObject(robot)
+  if (frameBox.isEmpty()) return
+  frameBox.getBoundingSphere(frameSphere)
+  const radius = Math.max(frameSphere.radius, 0.08)
+  const vertical = (camera.fov * Math.PI) / 180
+  const horizontal = 2 * Math.atan(Math.tan(vertical / 2) * Math.max(camera.aspect, 0.25))
+  const half = Math.min(vertical, horizontal) / 2
+  const distance = (radius / Math.tan(half)) * 1.24
+  frameCenter.copy(frameSphere.center)
+  camera.position.copy(frameCenter).addScaledVector(viewOffset, distance)
+  camera.near = Math.max(0.01, distance * 0.02)
+  camera.far = distance + radius * 8
+  camera.lookAt(frameCenter)
+  camera.updateProjectionMatrix()
+}
+
 function draw() {
   if (!renderer || !scene || !camera) return
   applyAngles()
+  frameRobot()
   renderer.render(scene, camera)
 }
 
@@ -223,14 +248,8 @@ async function boot() {
   fill.position.set(-1.5, 0.6, -1)
   scene.add(fill)
 
+  robot = upright
   camera = new THREE.PerspectiveCamera(30, 1, 0.01, 20)
-  upright.updateWorldMatrix(true, true)
-  const box = new THREE.Box3().setFromObject(upright)
-  const center = box.getCenter(new THREE.Vector3())
-  const size = box.getSize(new THREE.Vector3())
-  const distance = Math.max(size.x, size.y, size.z) * 1.35
-  camera.position.copy(center).add(new THREE.Vector3(distance * 0.85, distance * 0.42, distance * 0.72))
-  camera.lookAt(center.x, center.y + size.y * 0.02, center.z)
 
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
   renderer.setClearColor(0x000000, 0)
