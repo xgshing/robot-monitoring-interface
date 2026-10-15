@@ -1,4 +1,4 @@
-import { onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted, reactive } from 'vue'
 import { formatClock } from '../format'
 import {
   endEffectorPose,
@@ -9,8 +9,20 @@ import {
   runStateFromStatus,
   type TfEdge,
 } from '../ros/parse'
+import {
+  ARM_GROUP,
+  BASE_FRAME,
+  describeGoal,
+  FOLLOW_ACTION,
+  jointTargetError,
+  MOVE_ACTION,
+  poseGoal,
+  poseTargetError,
+  READY_DEGREES,
+  trajectoryGoal,
+} from '../ros/goals'
 import { RosBridgeClient } from '../ros/rosbridge'
-import type { ConsoleState, LogLevel, RunState } from '../types'
+import type { ConsoleState, LogLevel, Pose, RunState } from '../types'
 import { JOINTS } from '../types'
 
 const HISTORY = 48
@@ -50,6 +62,16 @@ export function useRosLive(
   let prevAngles = state.joints.map((joint) => joint.angle)
   let retryTimer = 0
   let sampleTimer = 0
+  let motionTicket = 0
+  let activeGoal: { id: string; action: string } | null = null
+
+  const command = reactive({
+    open: false,
+    busy: false,
+    note: '关节角直接交给控制器；末端位姿交给 MoveIt 规划后再执行。',
+    joints: [...READY_DEGREES],
+    pose: { x: -118, y: 762, z: 376, rx: 180, ry: 0, rz: 0 } as Pose,
+  })
 
   function subscribeAll() {
     client.subscribe(
@@ -309,6 +331,150 @@ export function useRosLive(
     }
   }
 
+  function fillCommand() {
+    command.joints = state.joints.map((joint) => Number(joint.angle.toFixed(2)))
+    command.pose = {
+      x: Number(state.target.x.toFixed(1)),
+      y: Number(state.target.y.toFixed(1)),
+      z: Number(state.target.z.toFixed(1)),
+      rx: Number(state.target.rx.toFixed(1)),
+      ry: Number(state.target.ry.toFixed(1)),
+      rz: Number(state.target.rz.toFixed(1)),
+    }
+  }
+
+  function openCommand() {
+    if (state.linkMode !== 'ros') return
+    fillCommand()
+    command.open = true
+    command.note = '关节角直接交给控制器；末端位姿交给 MoveIt 规划后再执行。'
+  }
+
+  function setJointTarget(index: number, value: number) {
+    command.joints[index] = value
+  }
+
+  function setPoseTarget(key: keyof Pose, value: number) {
+    command.pose[key] = value
+  }
+
+  async function sendJointTarget(degrees = command.joints, title = '关节目标') {
+    const problem = jointTargetError(degrees)
+    if (problem) {
+      command.note = problem
+      pushLog('warn', '目标未下发', problem)
+      return
+    }
+    if (state.linkMode !== 'ros' || !client.connected) {
+      command.note = '先连上 rosbridge'
+      return
+    }
+    const goal = trajectoryGoal(
+      state.joints.map((joint) => joint.angle),
+      degrees,
+    )
+    command.joints = degrees.map((value) => Number(value.toFixed(2)))
+    state.taskName = title
+    state.taskPhase = '下发'
+    state.plannerName = 'FollowJointTrajectory'
+    state.plannerStatus = '执行中'
+    state.plannerOk = true
+    command.note = `${title}已下发，约 ${goal.seconds.toFixed(1)} s`
+    pushLog('info', `下发${title}`, `panda_arm_controller · ${goal.seconds.toFixed(1)} s`)
+    await runGoal(FOLLOW_ACTION, 'control_msgs/action/FollowJointTrajectory', goal.args, 20000)
+  }
+
+  function sendReady() {
+    void sendJointTarget(READY_DEGREES, '就绪位')
+  }
+
+  async function sendPose() {
+    const problem = poseTargetError(command.pose)
+    if (problem) {
+      command.note = problem
+      pushLog('warn', '位姿未下发', problem)
+      return
+    }
+    if (state.linkMode !== 'ros' || !client.connected) {
+      command.note = '先连上 rosbridge'
+      return
+    }
+    state.taskName = '末端位姿'
+    state.taskPhase = '规划'
+    state.plannerName = 'MoveIt'
+    state.plannerStatus = '规划中'
+    state.plannerOk = true
+    command.note = `正在让 ${ARM_GROUP} 规划 panda_hand`
+    pushLog(
+      'info',
+      '请求 MoveIt 规划',
+      `${BASE_FRAME} → ${command.pose.x.toFixed(0)}, ${command.pose.y.toFixed(0)}, ${command.pose.z.toFixed(0)} mm`,
+    )
+    await runGoal(MOVE_ACTION, 'moveit_msgs/action/MoveGroup', poseGoal(command.pose), 60000)
+  }
+
+  async function runGoal(action: string, actionType: string, args: unknown, timeoutMs: number) {
+    const ticket = ++motionTicket
+    command.busy = true
+    try {
+      const pending = client.sendActionGoal(action, actionType, args, timeoutMs)
+      activeGoal = { id: pending.id, action }
+      const result = await pending.result
+      if (ticket !== motionTicket) return
+      activeGoal = null
+      const failure = describeGoal(result.status, result.values)
+      if (failure) {
+        command.note = failure
+        state.plannerStatus = '失败'
+        state.plannerOk = false
+        state.faultMessage = failure
+        pushLog('error', '动作失败', failure)
+        return
+      }
+      command.note = '动作已完成'
+      state.plannerStatus = '已完成'
+      state.plannerOk = true
+      state.taskPhase = '完成'
+      state.taskProgress = 100
+      pushLog('ok', '动作已完成', state.taskName)
+    } catch (error) {
+      if (ticket !== motionTicket) return
+      const message = error instanceof Error ? error.message : '动作失败'
+      command.note = message
+      state.plannerStatus = '失败'
+      state.plannerOk = false
+      pushLog('error', '动作失败', message)
+    } finally {
+      if (ticket === motionTicket) {
+        command.busy = false
+        activeGoal = null
+      }
+    }
+  }
+
+  function cancelMotion() {
+    motionTicket += 1
+    command.busy = false
+    const current = activeGoal
+    activeGoal = null
+    if (current) client.cancelActionGoal(current.action, current.id)
+    const cancelAll = {
+      goal_info: {
+        goal_id: { uuid: Array.from({ length: 16 }, () => 0) },
+        stamp: { sec: 0, nanosec: 0 },
+      },
+    }
+    void client
+      .callService(`${FOLLOW_ACTION}/_action/cancel_goal`, 'action_msgs/srv/CancelGoal', cancelAll)
+      .catch(() => undefined)
+    void client
+      .callService(`${MOVE_ACTION}/_action/cancel_goal`, 'action_msgs/srv/CancelGoal', cancelAll)
+      .catch(() => undefined)
+    command.note = '已请求停止关节控制器和 MoveIt'
+    state.taskPhase = '停止'
+    pushLog('warn', '已请求停止', '取消本页和正在执行的关节、规划目标')
+  }
+
   function toggleLink() {
     if (state.linkMode === 'ros') {
       preferSim = true
@@ -321,6 +487,8 @@ export function useRosLive(
       state.runState = 'running'
       state.faultMessage = null
       state.latencyMs = 18
+      command.open = false
+      command.busy = false
       resetHistory()
       pushLog('info', '已切回模拟数据', 'rosbridge 已断开，关节继续由模拟循环驱动')
       return
@@ -346,7 +514,19 @@ export function useRosLive(
     client.close()
   })
 
-  return { url: url ?? 'ws://127.0.0.1:9090', toggleLink }
+  return {
+    url: url ?? 'ws://127.0.0.1:9090',
+    toggleLink,
+    command,
+    openCommand,
+    fillCommand,
+    setJointTarget,
+    setPoseTarget,
+    sendJointTarget,
+    sendReady,
+    sendPose,
+    cancelMotion,
+  }
 }
 
 function mergeRun(move: RunState | null, follow: RunState | null): RunState | null {

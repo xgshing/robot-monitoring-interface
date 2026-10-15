@@ -367,6 +367,62 @@ h1, h2, h3, p { margin: 0; }
 .plan-status.ok { color: var(--green); }
 .plan-status.bad { color: #ff8d8d; }
 .plan-meta { color: var(--muted); font-size: 12px; line-height: 1.45; }
+.cmd-open {
+  margin-top: 8px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12px;
+}
+.cmd-open:disabled { opacity: 0.4; }
+.command-dock {
+  position: absolute;
+  z-index: 5;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  max-height: calc(100% - 16px);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 14px;
+  background: rgba(10, 16, 28, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+}
+.command-head, .command-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.command-head strong { font-size: 13px; }
+.command-actions { flex-wrap: wrap; justify-content: flex-start; }
+.command-actions button, .text-btn {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+.command-actions button:disabled { opacity: 0.4; }
+.command-actions .stop { background: rgba(255, 93, 93, 0.16); color: #ffb4b4; }
+.text-btn { padding: 2px 8px; }
+.target-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-top: 4px; }
+.pose-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.target-grid label { display: flex; flex-direction: column; gap: 2px; min-width: 0; color: var(--muted); font-size: 10px; }
+.target-grid input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: white;
+  border-radius: 8px;
+  padding: 4px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.command-note { color: var(--muted); font-size: 11px; line-height: 1.4; }
 
 .side { grid-area: side; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 10px; overflow: auto; }
 .camera {
@@ -605,6 +661,7 @@ h1, h2, h3, p { margin: 0; }
   .kpis, .task-card { grid-template-columns: 1fr; }
   .joints { grid-template-columns: 1fr; }
   .welcome h1 { font-size: 24px; }
+  .target-grid, .pose-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .kpi-value { font-size: 28px; }
   .status-row { flex-direction: row; flex-wrap: wrap; }
   .model { gap: 8px; }

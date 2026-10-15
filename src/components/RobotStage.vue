@@ -1,13 +1,30 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import CommandDock from './CommandDock.vue'
 import { formatNum } from '../format'
-import type { ConsoleState } from '../types'
+import type { ConsoleState, Pose } from '../types'
 
 const props = defineProps<{
   state: ConsoleState
+  commandOpen: boolean
+  commandBusy: boolean
+  commandNote: string
+  commandJoints: number[]
+  commandPose: Pose
 }>()
 
-const emit = defineEmits<{ ack: [] }>()
+const emit = defineEmits<{
+  ack: []
+  command: []
+  'close-command': []
+  fill: []
+  'set-joint': [index: number, value: number]
+  'set-pose': [key: keyof Pose, value: number]
+  joints: []
+  ready: []
+  pose: []
+  stop: []
+}>()
 
 function angleAt(index: number) {
   return props.state.joints[index]?.angle ?? 0
@@ -104,6 +121,22 @@ const yaw = computed(() => angleAt(0) * 0.06)
         <button type="button" @click="emit('ack')">恢复</button>
       </div>
 
+      <CommandDock
+        v-if="commandOpen"
+        :busy="commandBusy"
+        :note="commandNote"
+        :joints="commandJoints"
+        :pose="commandPose"
+        @close="emit('close-command')"
+        @fill="emit('fill')"
+        @set-joint="(index, value) => emit('set-joint', index, value)"
+        @set-pose="(key, value) => emit('set-pose', key, value)"
+        @joints="emit('joints')"
+        @ready="emit('ready')"
+        @pose="emit('pose')"
+        @stop="emit('stop')"
+      />
+
       <div v-if="!state.connected" class="offline">
         <strong>控制器未连接</strong>
         <p>关节反馈与路径规划已冻结</p>
@@ -130,7 +163,7 @@ const yaw = computed(() => angleAt(0) * 0.06)
         </div>
       </div>
       <div>
-        <p class="eyebrow">目标位置 · mm / °</p>
+        <p class="eyebrow">{{ state.linkMode === 'ros' ? '当前位姿 · panda_link0' : '目标位置 · mm / °' }}</p>
         <dl class="pose">
           <div><dt>X</dt><dd>{{ formatNum(state.target.x, 1) }}</dd></div>
           <div><dt>Y</dt><dd>{{ formatNum(state.target.y, 1) }}</dd></div>
@@ -145,6 +178,15 @@ const yaw = computed(() => angleAt(0) * 0.06)
         <strong class="plan-status" :class="state.plannerOk ? 'ok' : 'bad'" :title="state.plannerName">{{ state.plannerStatus }}</strong>
         <p v-if="state.waypoints" class="plan-meta">{{ state.waypoints }} 路点 · {{ (state.planMs / 1000).toFixed(2) }} s</p>
         <p v-else class="plan-meta">等待下发</p>
+        <button
+          type="button"
+          class="cmd-open"
+          :disabled="state.linkMode !== 'ros'"
+          title="连上 rosbridge 后可下发关节角或末端位姿"
+          @click="emit('command')"
+        >
+          控制
+        </button>
       </div>
     </article>
   </section>

@@ -71,7 +71,7 @@ const subtitle = computed(() =>
 
 function onToggleRun() {
   if (state.linkMode === 'ros') {
-    pushLog('info', '页面只读', '运行状态来自 MoveIt 与关节控制器，请在规划终端操作')
+    bridge.cancelMotion()
     return
   }
   toggleRun()
@@ -116,7 +116,7 @@ function tone(delta: number, upIsBad: boolean) {
               type="button"
               class="status-pill"
               :class="runTone"
-              title="暂停、继续或确认故障"
+              :title="state.linkMode === 'ros' ? '停止当前动作' : '暂停或继续模拟任务'"
               @click="onToggleRun"
             >
               <i></i>
@@ -138,7 +138,24 @@ function tone(delta: number, upIsBad: boolean) {
         </section>
 
         <JointColumn :state="state" @select="selectJoint" />
-        <RobotStage :state="state" @ack="acknowledge" />
+        <RobotStage
+          :state="state"
+          :command-open="bridge.command.open"
+          :command-busy="bridge.command.busy"
+          :command-note="bridge.command.note"
+          :command-joints="bridge.command.joints"
+          :command-pose="bridge.command.pose"
+          @ack="acknowledge"
+          @command="bridge.openCommand()"
+          @close-command="bridge.command.open = false"
+          @fill="bridge.fillCommand()"
+          @set-joint="bridge.setJointTarget"
+          @set-pose="bridge.setPoseTarget"
+          @joints="bridge.sendJointTarget()"
+          @ready="bridge.sendReady()"
+          @pose="bridge.sendPose()"
+          @stop="bridge.cancelMotion()"
+        />
         <SidePanel :state="state" @link="bridge.toggleLink" @run="onToggleRun" @snapshot="snapshot" />
         <ChartColumn :state="state" @select="selectJoint" />
         <EventLog :state="state" @ack="acknowledge" />

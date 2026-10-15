@@ -49,6 +49,17 @@ ros2 launch rosbridge_server rosbridge_websocket_launch.xml
 
 左上角「模拟」表示还在用页面内的循环。点它会重试 rosbridge；连上后变成「已连接」，再点一次切回模拟。机械臂图形是按关节角驱动的示意图，不是 URDF。
 
+当前位姿来自 `panda_link0` → `panda_hand`。这台 Panda 没有夹爪动作，页面不下发夹爪。
+
+连上之后，规划结果旁的「控制」可以：
+
+- 下发关节：把七个目标角度发给 `/panda_arm_controller/follow_joint_trajectory`
+- 回就绪：Franka 常用就绪位（J4 为 -135°，不是全零）
+- 规划执行：把末端目标发给 `/move_action`，规划组 `panda_arm`，由 MoveIt 规划并执行
+- 停止：取消关节控制器和 MoveIt 上正在执行的目标
+
+速度比例是 0.2。关节目标超出软限位时不会下发。
+
 ## 技术
 
 - Vue 3 + TypeScript + Vite
