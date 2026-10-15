@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import CommandDock from './CommandDock.vue'
+import PandaArm from './PandaArm.vue'
 import { formatNum } from '../format'
 import type { ConsoleState, Pose } from '../types'
 
@@ -26,6 +27,10 @@ const emit = defineEmits<{
   stop: []
 }>()
 
+const pandaReady = ref(false)
+const showPanda = computed(() => pandaReady.value && props.state.linkMode === 'ros')
+const jointAngles = computed(() => props.state.joints.map((joint) => joint.angle))
+
 function angleAt(index: number) {
   return props.state.joints[index]?.angle ?? 0
 }
@@ -39,7 +44,8 @@ const yaw = computed(() => angleAt(0) * 0.06)
 <template>
   <section class="stage">
     <div class="stage-view">
-      <svg class="arm-svg" viewBox="0 0 460 500" role="img" aria-label="七轴机械臂姿态">
+      <PandaArm v-show="showPanda" :angles="jointAngles" @ready="pandaReady = $event" />
+      <svg v-show="!showPanda" class="arm-svg" viewBox="0 0 460 500" role="img" aria-label="七轴机械臂姿态">
         <defs>
           <radialGradient id="tx-spot" cx="50%" cy="42%" r="55%">
             <stop offset="0%" stop-color="rgba(126, 160, 214, 0.16)" />

@@ -47,7 +47,13 @@ ros2 launch rosbridge_server rosbridge_websocket_launch.xml
 
 `/display_planned_path` 有的发布端是 `TRANSIENT_LOCAL`。页面按 `VOLATILE` 订阅，这样才能同时连上其余发布端。请在页面显示「已连接」之后再做一次规划，路点才会出现。
 
-左上角「模拟」表示还在用页面内的循环。点它会重试 rosbridge；连上后变成「已连接」，再点一次切回模拟。机械臂图形是按关节角驱动的示意图，不是 URDF。
+左上角「模拟」表示还在用页面内的循环。点它会重试 rosbridge；连上后变成「已连接」，再点一次切回模拟。
+
+手臂外形使用本机 Gazebo Fuel 缓存里的 Panda 视觉网格，关节角和 Gazebo 共用 `/joint_states`。网格不放进仓库。Windows 上从 PowerShell 启动时，开发服务器会通过 WSL 找到：
+
+`~/.gz/fuel/fuel.ignitionrobotics.org/openrobotics/models/panda with ignition position controller model/5`
+
+找不到时页面仍显示原来的示意图。也可以在启动前设置 `PANDA_MODEL_DIR` 指向这个目录。
 
 当前位姿来自 `panda_link0` → `panda_hand`。这台 Panda 没有夹爪动作，页面不下发夹爪。
 
