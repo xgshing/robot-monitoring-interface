@@ -28,7 +28,7 @@ const emit = defineEmits<{
 }>()
 
 const pandaReady = ref(false)
-const showPanda = computed(() => pandaReady.value && props.state.linkMode === 'ros')
+const showPanda = computed(() => pandaReady.value)
 const jointAngles = computed(() => props.state.joints.map((joint) => joint.angle))
 
 function angleAt(index: number) {

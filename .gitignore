@@ -8,7 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-panda-model
+/panda-model
 dist
 dist-ssr
 *.local

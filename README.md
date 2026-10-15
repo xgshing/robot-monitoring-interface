@@ -49,11 +49,11 @@ ros2 launch rosbridge_server rosbridge_websocket_launch.xml
 
 左上角「模拟」表示还在用页面内的循环。点它会重试 rosbridge；连上后变成「已连接」，再点一次切回模拟。
 
-手臂外形使用本机 Gazebo Fuel 缓存里的 Panda 网格，材质按 Gazebo 里的浅灰外壳，不使用 RViz 的橙色贴图。关节角和 Gazebo 共用 `/joint_states`。网格不放进仓库。Windows 上从 PowerShell 启动时，开发服务器会通过 WSL 找到：
+手臂外形使用项目里的 Panda 网格，材质按 Gazebo 里的浅灰外壳，不使用 RViz 的橙色贴图。关节角和 Gazebo 共用 `/joint_states`。如果本机还有 Gazebo Fuel 缓存，开发服务器会优先用那一份。Windows 上从 PowerShell 启动时，会通过 WSL 找到：
 
 `~/.gz/fuel/fuel.ignitionrobotics.org/openrobotics/models/panda with ignition position controller model/5`
 
-找不到时页面仍显示原来的示意图。也可以在启动前设置 `PANDA_MODEL_DIR` 指向这个目录。
+项目自带的网格在 `public/panda-model`。只有这份文件也读不到时，页面才显示原来的示意图。已连接和模拟用的是同一套外形。也可以在启动前设置 `PANDA_MODEL_DIR` 指向 Fuel 缓存。
 
 当前位姿来自 `panda_link0` → `panda_hand`。这台 Panda 没有夹爪动作，页面不下发夹爪。
 

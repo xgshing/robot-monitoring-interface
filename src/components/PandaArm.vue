@@ -68,7 +68,11 @@ function frameRobot() {
 function draw() {
   if (!renderer || !scene || !camera) return
   applyAngles()
-  frameRobot()
+  try {
+    frameRobot()
+  } catch {
+    // 取景失败时保留上一帧相机，避免退回示意图
+  }
   renderer.render(scene, camera)
 }
 
@@ -83,8 +87,11 @@ function shellMaterial(map?: THREE.Texture) {
 
 function gazeboAlbedo(source: THREE.Texture) {
   const image = source.image as CanvasImageSource & { width?: number; height?: number }
-  const width = image.width || 1024
-  const height = image.height || 1024
+  const sourceWidth = image.width || 1024
+  const sourceHeight = image.height || 1024
+  const scale = Math.min(1, 512 / Math.max(sourceWidth, sourceHeight))
+  const width = Math.max(1, Math.round(sourceWidth * scale))
+  const height = Math.max(1, Math.round(sourceHeight * scale))
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height
@@ -143,34 +150,57 @@ async function loadMesh(name: string, loader: ColladaLoader, textures: Map<strin
   return wrapper
 }
 
+function textureFile(name: string) {
+  if (name === 'finger') return 'finger_finger_BaseColor.png'
+  if (name === 'hand') return 'hand_hand_BaseColor.png'
+  return `${name}_${name}_BaseColor.png`
+}
+
+async function applyGazeboTextures(parts: Map<string, THREE.Group>) {
+  const textureLoader = new THREE.TextureLoader()
+  for (const name of MESHES) {
+    const part = parts.get(name)
+    if (!part) continue
+    try {
+      const texture = await textureLoader.loadAsync(`/panda-model/materials/textures/${textureFile(name)}`)
+      texture.colorSpace = THREE.SRGBColorSpace
+      texture.flipY = false
+      const albedo = gazeboAlbedo(texture)
+      part.traverse((node) => {
+        const mesh = node as THREE.Mesh
+        if (!mesh.isMesh) return
+        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+        materials.forEach((material) => {
+          if (material instanceof THREE.MeshStandardMaterial) {
+            material.map = albedo
+            material.needsUpdate = true
+          }
+        })
+      })
+    } catch {
+      // 贴图缺失时保留浅灰外壳
+    }
+    await new Promise((resolve) => window.requestAnimationFrame(resolve))
+  }
+}
+
 async function boot() {
-  const probe = await fetch('/panda-model/meshes/visual/link0.dae', { method: 'HEAD' })
-  if (!probe.ok || !host.value) {
+  if (!host.value) {
     emit('ready', false)
     return
   }
   const loader = new ColladaLoader()
-  const textureLoader = new THREE.TextureLoader()
-  const textures = new Map<string, THREE.Texture>()
-  await Promise.all(
-    MESHES.map(async (name) => {
-      const file = name === 'finger' ? 'finger_finger_BaseColor.png' : name === 'hand' ? 'hand_hand_BaseColor.png' : `${name}_${name}_BaseColor.png`
-      try {
-        const texture = await textureLoader.loadAsync(`/panda-model/materials/textures/${file}`)
-        texture.colorSpace = THREE.SRGBColorSpace
-        texture.flipY = false
-        textures.set(name, gazeboAlbedo(texture))
-      } catch {
-        // 贴图缺失时仍用浅灰外壳
-      }
-    }),
-  )
   const parts = new Map<string, THREE.Group>()
-  await Promise.all(
-    MESHES.map(async (name) => {
-      parts.set(name, await loadMesh(name, loader, textures))
-    }),
-  )
+  try {
+    await Promise.all(
+      MESHES.map(async (name) => {
+        parts.set(name, await loadMesh(name, loader, new Map()))
+      }),
+    )
+  } catch {
+    emit('ready', false)
+    return
+  }
   const fingerCopy = parts.get('finger')!.clone(true)
 
   const link0 = new THREE.Group()
@@ -261,6 +291,7 @@ async function boot() {
   resize()
   emit('ready', true)
   draw()
+  void applyGazeboTextures(parts)
 }
 
 function resize() {
@@ -277,7 +308,9 @@ function resize() {
 let observer: ResizeObserver | null = null
 
 onMounted(() => {
-  void boot().catch(() => emit('ready', false))
+  void boot().catch(() => {
+    if (!renderer) emit('ready', false)
+  })
   observer = new ResizeObserver(() => resize())
   if (host.value) observer.observe(host.value)
   frame = window.requestAnimationFrame(function loop() {
