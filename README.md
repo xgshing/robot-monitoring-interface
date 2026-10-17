@@ -2,13 +2,13 @@
 
 Franka Panda 监控控制台。页面按工业监控台的深色版面组织：连接与运行状态、七个关节角度、当前任务、目标位姿和执行记录放在同一块工位窗口里，曲线用 ECharts 实时绘制。
 
-浏览器不能直接加入 ROS 2 的 DDS。页面通过 rosbridge 的 WebSocket 读取你已经在跑的 Gazebo / MoveIt 图；连不上时继续用模拟循环。页面只读，不会下发轨迹。
+浏览器不能直接加入 ROS 2 的 DDS。页面通过 rosbridge 的 WebSocket 读取已经在跑的 Gazebo / MoveIt；连不上时继续用模拟循环。连上后可以下发关节轨迹、就绪位和 MoveIt 末端目标。
+
+![Franka Panda 监控控制台](docs/screenshot-console.png)
 
 ## 运行页面
 
 ```bash
-git fetch origin
-git switch cursor/robot-monitor-console-f035
 npm install
 npm run dev
 ```
