@@ -4,6 +4,7 @@ import { onMounted, onUnmounted, reactive } from 'vue'
 import { formatClock } from '../format'
 import {
   endEffectorPose,
+  poseToFrame,
   liveJoints,
   logFromRosout,
   planSummary,
@@ -14,6 +15,7 @@ import {
 import {
   ARM_GROUP,
   BASE_FRAME,
+  PLANNING_FRAME,
   cancelAccepted,
   describeGoal,
   FOLLOW_ACTION,
@@ -464,19 +466,26 @@ export function useRosLive(
       pushLog('error', '位姿未下发', command.note)
       return
     }
+    const planningPose = poseToFrame(tf, command.pose, BASE_FRAME, PLANNING_FRAME)
+    if (!planningPose) {
+      command.note = `还没有收到 ${PLANNING_FRAME} → ${BASE_FRAME}，MoveIt 要求目标写在 ${PLANNING_FRAME}`
+      state.faultMessage = command.note
+      pushLog('error', '位姿未下发', command.note)
+      return
+    }
     state.taskName = '末端位姿'
     state.taskPhase = '规划'
     state.plannerName = 'MoveIt'
     state.plannerStatus = '规划中'
     state.plannerOk = true
     state.faultMessage = null
-    command.note = `正在让 ${ARM_GROUP} 规划 panda_hand，规划成功后才会执行`
+    command.note = `正在让 ${ARM_GROUP} 按 ${PLANNING_FRAME} 规划 panda_hand，规划成功后才会执行`
     pushLog(
       'info',
       '请求 MoveIt 规划',
-      `${BASE_FRAME} → ${command.pose.x.toFixed(0)}, ${command.pose.y.toFixed(0)}, ${command.pose.z.toFixed(0)} mm`,
+      `${BASE_FRAME} 目标已变换到 ${PLANNING_FRAME}：${planningPose.x.toFixed(0)}, ${planningPose.y.toFixed(0)}, ${planningPose.z.toFixed(0)} mm`,
     )
-    await runGoal(MOVE_ACTION, 'moveit_msgs/action/MoveGroup', poseGoal(command.pose), 60000)
+    await runGoal(MOVE_ACTION, 'moveit_msgs/action/MoveGroup', poseGoal(planningPose), 60000)
   }
 
   async function runGoal(action: string, actionType: string, args: unknown, timeoutMs: number) {

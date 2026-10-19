@@ -8,6 +8,7 @@ const DEG2RAD = Math.PI / 180
 export const ARM_GROUP = 'panda_arm'
 export const EE_LINK = 'panda_hand'
 export const BASE_FRAME = 'panda_link0'
+export const PLANNING_FRAME = 'world'
 export const FOLLOW_ACTION = '/panda_arm_controller/follow_joint_trajectory'
 export const MOVE_ACTION = '/move_action'
 
@@ -93,10 +94,11 @@ export function trajectoryGoal(currentDegrees: number[], targetDegrees: number[]
   }
 }
 
-export function poseGoal(pose: Pose) {
+export function poseGoal(pose: Pose, frame = PLANNING_FRAME) {
   const position = { x: pose.x / 1000, y: pose.y / 1000, z: pose.z / 1000 }
   const orientation = rpyToQuaternion(pose.rx, pose.ry, pose.rz)
-  const header = { stamp: { sec: 0, nanosec: 0 }, frame_id: BASE_FRAME }
+  const header = { stamp: { sec: 0, nanosec: 0 }, frame_id: frame }
+  const jointHeader = { stamp: { sec: 0, nanosec: 0 }, frame_id: '' }
   return {
     request: {
       workspace_parameters: {
@@ -105,7 +107,7 @@ export function poseGoal(pose: Pose) {
         max_corner: { x: 2, y: 2, z: 2 },
       },
       start_state: {
-        joint_state: { header, name: [], position: [], velocity: [], effort: [] },
+        joint_state: { header: jointHeader, name: [], position: [], velocity: [], effort: [] },
         is_diff: true,
       },
       goal_constraints: [

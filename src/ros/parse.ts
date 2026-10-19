@@ -132,14 +132,49 @@ export function logFromRosout(message: unknown): { level: LogLevel; title: strin
 export function rememberTf(tree: Map<string, TfEdge>, message: unknown) {
   const msg = (message ?? {}) as TfMsg
   for (const item of msg.transforms ?? []) {
-    const child = item.child_frame_id
-    const parent = item.header?.frame_id
+    const child = stripFrame(item.child_frame_id)
+    const parent = stripFrame(item.header?.frame_id)
     if (!child || !parent || !item.transform?.translation || !item.transform.rotation) continue
     tree.set(child, {
       parent,
       translation: { ...item.transform.translation },
       rotation: { ...item.transform.rotation },
     })
+  }
+}
+
+export function poseToFrame(
+  tree: Map<string, TfEdge>,
+  pose: Pose,
+  source: string,
+  target: string,
+): Pose | null {
+  if (source === target) return { ...pose }
+  const chain: TfEdge[] = []
+  let cursor = source
+  const seen = new Set<string>()
+  while (cursor !== target) {
+    if (seen.has(cursor) || !tree.has(cursor)) return null
+    seen.add(cursor)
+    const edge = tree.get(cursor)
+    if (!edge) return null
+    chain.push(edge)
+    cursor = edge.parent
+  }
+  let translation = { x: pose.x / 1000, y: pose.y / 1000, z: pose.z / 1000 }
+  let rotation = rpyToQuaternion(pose.rx, pose.ry, pose.rz)
+  for (const edge of chain) {
+    translation = add(edge.translation, rotate(edge.rotation, translation))
+    rotation = multiply(edge.rotation, rotation)
+  }
+  const rpy = quaternionToRpy(rotation)
+  return {
+    x: translation.x * 1000,
+    y: translation.y * 1000,
+    z: translation.z * 1000,
+    rx: rpy.rx,
+    ry: rpy.ry,
+    rz: rpy.rz,
   }
 }
 
@@ -171,6 +206,28 @@ export function endEffectorPose(tree: Map<string, TfEdge>): Pose | null {
     rx: rpy.rx,
     ry: rpy.ry,
     rz: rpy.rz,
+  }
+}
+
+function stripFrame(name?: string) {
+  return name?.replace(/^\//, '') ?? ''
+}
+
+function rpyToQuaternion(rx: number, ry: number, rz: number): Quat {
+  const roll = (rx * Math.PI) / 180
+  const pitch = (ry * Math.PI) / 180
+  const yaw = (rz * Math.PI) / 180
+  const cy = Math.cos(yaw / 2)
+  const sy = Math.sin(yaw / 2)
+  const cp = Math.cos(pitch / 2)
+  const sp = Math.sin(pitch / 2)
+  const cr = Math.cos(roll / 2)
+  const sr = Math.sin(roll / 2)
+  return {
+    x: sr * cp * cy - cr * sp * sy,
+    y: cr * sp * cy + sr * cp * sy,
+    z: cr * cp * sy - sr * sp * cy,
+    w: cr * cp * cy + sr * sp * sy,
   }
 }
 
