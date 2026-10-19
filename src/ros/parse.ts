@@ -1,3 +1,4 @@
+// 把 /joint_states、/tf、规划路径和 /rosout 解析成页面数据
 import type { JointSpec, LogLevel, Pose, RunState } from '../types'
 
 const RAD2DEG = 180 / Math.PI
