@@ -115,7 +115,7 @@ const yaw = computed(() => angleAt(0) * 0.06)
       <span v-if="state.pins.shoulder.count > 0" class="pin warn pin-shoulder" :title="state.pins.shoulder.note"><i></i>{{ state.pins.shoulder.count }} 警告</span>
       <span v-if="state.pins.elbow.count > 0" class="pin warn pin-elbow" :title="state.pins.elbow.note"><i></i>{{ state.pins.elbow.count }} 警告</span>
       <span v-if="state.pins.base.count > 0" class="pin warn pin-base" :title="state.pins.base.note"><i></i>{{ state.pins.base.count }} 警告</span>
-      <span v-if="state.pins.errors.count > 0" class="pin err pin-wrist" :title="state.pins.errors.note"><i></i>{{ state.pins.errors.count }} 错误</span>
+      <span v-if="state.faultMessage" class="pin err pin-wrist" :title="state.faultMessage"><i></i>错误</span>
       <svg v-if="state.faultMessage" class="warn-mark" viewBox="0 0 20 18" aria-hidden="true">
         <path d="M10 1.2 18.6 16.4H1.4L10 1.2Z" fill="#f5b942" />
         <path d="M10 6.2v5" stroke="#2a2110" stroke-width="1.6" stroke-linecap="round" />

@@ -208,7 +208,7 @@ export function useRobotSimulation() {
       base: { count: 3, note: '基座振动超过 0.8 mm/s' },
       shoulder: { count: 2, note: 'J2 电流较基线偏高 6%' },
       elbow: { count: 13, note: '本班次肘部温度告警 13 次' },
-      errors: { count: 6, note: '腕部跟随误差，已自动复位 6 次' },
+      errors: { count: 0, note: '当前没有错误' },
     },
     logs: seedLogs(),
     timeLabels: [],
@@ -309,8 +309,7 @@ export function useRobotSimulation() {
     faultElapsed = 0
     state.runState = 'fault'
     state.faultMessage = '夹爪真空跌落至 36 kPa，搬运已挂起'
-    state.pins.errors.count += 1
-    state.pins.errors.note = '真空不足 36 kPa'
+    state.pins.errors = { count: 1, note: state.faultMessage }
     state.emergencies += 1
     syncPlanner()
     pushLog('error', '夹爪真空不足', '压力 36 kPa，低于 55 kPa，任务已挂起')
@@ -324,6 +323,7 @@ export function useRobotSimulation() {
     inFault = false
     faultElapsed = 0
     state.faultMessage = null
+    state.pins.errors = { count: 0, note: '当前没有错误' }
     if (state.connected) state.runState = userHold ? 'paused' : 'running'
     syncPlanner()
     pushLog(
@@ -498,6 +498,9 @@ export function useRobotSimulation() {
   function acknowledge() {
     if (state.linkMode === 'ros') {
       state.faultMessage = null
+      state.pins.errors = { count: 0, note: '当前没有错误' }
+      state.emergencies = 0
+      state.emergencyDelta = 0
       if (state.runState === 'fault') state.runState = 'idle'
       pushLog('info', '操作员确认告警', '已清除页面上的故障提示')
       return

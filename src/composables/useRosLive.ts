@@ -58,8 +58,8 @@ export function useRosLive(
     state.taskPhase = '中断'
     state.plannerStatus = '通信中断'
     state.plannerOk = false
-    state.faultMessage = '与 rosbridge 的通信中断，无法确认机械臂是否还在运动'
-    command.note = state.faultMessage
+    setCurrentFault('与 rosbridge 的通信中断，无法确认机械臂是否还在运动')
+    command.note = '与 rosbridge 的通信中断，无法确认机械臂是否还在运动'
     pushLog('error', '通信中断', url || 'ws://127.0.0.1:9090')
     schedule()
   })
@@ -77,7 +77,6 @@ export function useRosLive(
   let followState: RunState | null = null
   let health0 = state.health
   let rpm0 = state.avgRpm
-  let emerg0 = Math.max(1, state.emergencies)
   let prevAngles = state.joints.map((joint) => joint.angle)
   let retryTimer = 0
   let sampleTimer = 0
@@ -130,6 +129,14 @@ export function useRosLive(
     prevAngles = state.joints.map((joint) => joint.angle)
   }
 
+  function setCurrentFault(message: string | null) {
+    state.faultMessage = message
+    state.pins.errors.count = message ? 1 : 0
+    state.pins.errors.note = message ?? '当前没有错误'
+    state.emergencies = message ? 1 : 0
+    state.emergencyDelta = 0
+  }
+
   function enterRos() {
     resetHistory()
     state.linkMode = 'ros'
@@ -145,15 +152,14 @@ export function useRosLive(
     state.planMs = 0
     state.plannerStatus = '等待规划'
     state.plannerOk = true
-    state.faultMessage = null
+    setCurrentFault(null)
+    state.logs.splice(0)
     state.pins.base.count = 0
     state.pins.base.note = '连接后暂无'
     state.pins.shoulder.count = 0
     state.pins.shoulder.note = '连接后暂无'
     state.pins.elbow.count = 0
     state.pins.elbow.note = '连接后暂无'
-    state.pins.errors.count = 0
-    state.pins.errors.note = '连接后暂无错误'
     primed = false
     lastJointAt = 0
     lastPlanKey = ''
@@ -196,7 +202,6 @@ export function useRosLive(
       primed = true
       rpm0 = state.avgRpm
       health0 = state.health
-      emerg0 = Math.max(1, state.emergencies)
     }
     refreshDeltas()
   }
@@ -265,16 +270,13 @@ export function useRosLive(
     if (merged === 'running') {
       runStarted = performance.now()
       state.taskPhase = '执行'
-      state.faultMessage = null
+      setCurrentFault(null)
       if (previous !== 'running') pushLog('info', '轨迹执行中', state.taskName)
     } else if (merged === 'fault') {
-      state.faultMessage = '动作被中止'
+      if (!state.faultMessage) setCurrentFault('动作被中止')
       state.plannerStatus = '中止'
       state.plannerOk = false
       state.taskPhase = '故障'
-      state.emergencies += 1
-      state.pins.errors.count += 1
-      state.pins.errors.note = '动作目标 aborted'
       pushLog('error', '动作中止', 'MoveIt 或关节轨迹控制器报告 aborted')
     } else if (merged === 'paused') {
       state.taskPhase = '已取消'
@@ -303,12 +305,7 @@ export function useRosLive(
       const oldest = [...seenLogs.entries()].sort((a, b) => a[1] - b[1])[0]
       if (oldest) seenLogs.delete(oldest[0])
     }
-    if (entry.level === 'error') {
-      state.emergencies += 1
-      state.faultMessage = entry.detail
-      state.pins.errors.count += 1
-      state.pins.errors.note = entry.detail
-    }
+    if (entry.level === 'error') setCurrentFault(entry.detail)
     pushLog(entry.level, entry.title, entry.detail)
     refreshDeltas()
   }
@@ -328,7 +325,7 @@ export function useRosLive(
   }
 
   function refreshDeltas() {
-    state.emergencyDelta = (state.emergencies / emerg0 - 1) * 100
+    state.emergencyDelta = 0
     state.healthDelta = health0 === 0 ? 0 : (state.health / health0 - 1) * 100
     state.speedDelta = rpm0 === 0 ? (state.avgRpm === 0 ? 0 : 100) : (state.avgRpm / rpm0 - 1) * 100
   }
@@ -418,20 +415,20 @@ export function useRosLive(
     const problem = jointTargetError(degrees)
     if (problem) {
       command.note = problem
-      state.faultMessage = problem
+      setCurrentFault(problem)
       pushLog('warn', '目标未下发', problem)
       return
     }
     if (state.linkMode !== 'ros' || !client.connected) {
       command.note = '先连上 rosbridge，才能把关节目标发给控制器'
-      state.faultMessage = command.note
+      setCurrentFault(command.note)
       pushLog('error', '目标未下发', command.note)
       return
     }
     const current = state.joints.map((joint) => joint.angle)
     if (current.some((angle) => !Number.isFinite(angle))) {
       command.note = '还没有收到 /joint_states，不能从未知姿态出发'
-      state.faultMessage = command.note
+      setCurrentFault(command.note)
       pushLog('error', '目标未下发', command.note)
       return
     }
@@ -442,7 +439,7 @@ export function useRosLive(
     state.plannerName = 'FollowJointTrajectory'
     state.plannerStatus = '执行中'
     state.plannerOk = true
-    state.faultMessage = null
+    setCurrentFault(null)
     command.note = `${title}已发给关节控制器，约 ${goal.seconds.toFixed(1)} s`
     pushLog('info', `下发${title}`, `panda_arm_controller · ${goal.seconds.toFixed(1)} s`)
     await runGoal(FOLLOW_ACTION, 'control_msgs/action/FollowJointTrajectory', goal.args, 20000)
@@ -456,20 +453,20 @@ export function useRosLive(
     const problem = poseTargetError(command.pose)
     if (problem) {
       command.note = problem
-      state.faultMessage = problem
+      setCurrentFault(problem)
       pushLog('warn', '位姿未下发', problem)
       return
     }
     if (state.linkMode !== 'ros' || !client.connected) {
       command.note = '先连上 rosbridge，才能把末端目标交给 MoveIt'
-      state.faultMessage = command.note
+      setCurrentFault(command.note)
       pushLog('error', '位姿未下发', command.note)
       return
     }
     const planningPose = poseToFrame(tf, command.pose, BASE_FRAME, PLANNING_FRAME)
     if (!planningPose) {
       command.note = `还没有收到 ${PLANNING_FRAME} → ${BASE_FRAME}，MoveIt 要求目标写在 ${PLANNING_FRAME}`
-      state.faultMessage = command.note
+      setCurrentFault(command.note)
       pushLog('error', '位姿未下发', command.note)
       return
     }
@@ -478,7 +475,7 @@ export function useRosLive(
     state.plannerName = 'MoveIt'
     state.plannerStatus = '规划中'
     state.plannerOk = true
-    state.faultMessage = null
+    setCurrentFault(null)
     command.note = `正在让 ${ARM_GROUP} 按 ${PLANNING_FRAME} 规划 panda_hand，规划成功后才会执行`
     pushLog(
       'info',
@@ -502,7 +499,7 @@ export function useRosLive(
         command.note = failure
         state.plannerStatus = '失败'
         state.plannerOk = false
-        state.faultMessage = failure
+        setCurrentFault(failure)
         pushLog('error', '动作失败', failure)
         return
       }
@@ -511,6 +508,7 @@ export function useRosLive(
       state.plannerOk = true
       state.taskPhase = '完成'
       state.taskProgress = 100
+      setCurrentFault(null)
       pushLog('ok', '动作已完成', state.taskName)
     } catch (error) {
       if (ticket !== motionTicket) return
@@ -518,7 +516,7 @@ export function useRosLive(
       command.note = message
       state.plannerStatus = '失败'
       state.plannerOk = false
-      state.faultMessage = message
+      setCurrentFault(message)
       state.taskPhase = '故障'
       pushLog('error', '动作失败', message)
     } finally {
@@ -536,7 +534,7 @@ export function useRosLive(
     command.busy = false
     if (state.linkMode !== 'ros' || !client.connected) {
       command.note = '未连接 rosbridge，不能取消控制器上的目标'
-      state.faultMessage = command.note
+      setCurrentFault(command.note)
       pushLog('error', '停止失败', command.note)
       return
     }
@@ -565,14 +563,14 @@ export function useRosLive(
     const answered = results.some((result) => result.status === 'fulfilled')
     if (!accepted && !answered && !bridgeCancel) {
       command.note = '停止失败：关节控制器和 MoveIt 都没有接受取消'
-      state.faultMessage = command.note
+      setCurrentFault(command.note)
       state.plannerStatus = '停止失败'
       state.plannerOk = false
       state.taskPhase = '故障'
       pushLog('error', '停止失败', command.note)
       return
     }
-    state.faultMessage = null
+    setCurrentFault(null)
     state.taskPhase = '停止'
     state.plannerStatus = accepted ? '正在取消' : '已请求取消'
     state.plannerOk = true
@@ -595,8 +593,10 @@ export function useRosLive(
       state.pins.base = { count: 3, note: '基座振动超过 0.8 mm/s' }
       state.pins.shoulder = { count: 2, note: 'J2 电流较基线偏高 6%' }
       state.pins.elbow = { count: 13, note: '本班次肘部温度告警 13 次' }
-      state.pins.errors = { count: 6, note: '腕部跟随误差，已自动复位 6 次' }
+      state.pins.errors = { count: 0, note: '当前没有错误' }
       state.faultMessage = null
+      state.emergencies = 894
+      state.emergencyDelta = 0.3
       state.latencyMs = 18
       command.open = false
       command.busy = false

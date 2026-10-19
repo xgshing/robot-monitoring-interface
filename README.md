@@ -43,7 +43,8 @@ ros2 launch rosbridge_server rosbridge_websocket_launch.xml
 | 运行状态 | `/move_action/_action/status`、`/panda_arm_controller/follow_joint_trajectory/_action/status` |
 | 规划路点与时长 | `/display_planned_path` |
 | 目标位姿 | `/tf`、`/tf_static`（`panda_hand` / `panda_link8` / `panda_grasptarget`） |
-| 错误记录 | `/rosout`（WARN 及以上） |
+| 当前错误 | 动作失败、中止，或 `/rosout` 的最新一条 ERROR。旧错误不累加，点「恢复」、动作开始或成功后清除 |
+| 错误记录 | 底部执行记录保留历史；`/rosout` 的 WARN 及以上都会写入 |
 
 `/display_planned_path` 有的发布端是 `TRANSIENT_LOCAL`。页面按 `VOLATILE` 订阅，这样才能同时连上其余发布端。请在页面显示「已连接」之后再做一次规划，路点才会出现。
 

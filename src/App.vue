@@ -27,6 +27,7 @@ const kpis = computed(() => [
     delta: state.emergencyDelta,
     upIsBad: true,
     dot: 'red',
+    live: state.linkMode === 'ros',
   },
   {
     label: '健康评分',
@@ -34,6 +35,7 @@ const kpis = computed(() => [
     delta: state.healthDelta,
     upIsBad: false,
     dot: 'cyan',
+    live: false,
   },
   {
     label: '平均转速',
@@ -41,6 +43,7 @@ const kpis = computed(() => [
     delta: state.speedDelta,
     upIsBad: false,
     dot: 'green',
+    live: false,
   },
 ])
 
@@ -129,7 +132,10 @@ function tone(delta: number, upIsBad: boolean) {
           <article v-for="card in kpis" :key="card.label" class="kpi">
             <p class="kpi-label"><i class="dot" :class="card.dot"></i>{{ card.label }}</p>
             <p class="kpi-value">{{ card.value }}</p>
-            <p class="delta" :class="tone(card.delta, card.upIsBad)">
+            <p v-if="card.live" class="delta" :class="state.faultMessage ? 'bad' : 'good'">
+              <span class="hint">{{ state.faultMessage ? '当前有错误' : '当前没有错误' }}</span>
+            </p>
+            <p v-else class="delta" :class="tone(card.delta, card.upIsBad)">
               <i class="arrow" :class="card.delta >= 0 ? 'up' : 'down'"></i>
               <span>{{ formatPct(card.delta) }}</span>
               <span class="hint">较上个班次</span>
