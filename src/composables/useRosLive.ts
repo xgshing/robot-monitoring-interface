@@ -82,6 +82,7 @@ export function useRosLive(
   let sampleTimer = 0
   let motionTicket = 0
   let activeGoal: { id: string; action: string } | null = null
+  let notedBaseFrame = false
 
   const command = reactive({
     open: false,
@@ -166,6 +167,7 @@ export function useRosLive(
     moveState = null
     followState = null
     loggedOffline = false
+    notedBaseFrame = false
     pushLog('ok', '已接入 Gazebo / MoveIt', url ?? '')
   }
 
@@ -304,6 +306,18 @@ export function useRosLive(
     if (seenLogs.size > 40) {
       const oldest = [...seenLogs.entries()].sort((a, b) => a[1] - b[1])[0]
       if (oldest) seenLogs.delete(oldest[0])
+    }
+    if (entry.level === 'error' && baseFrameRegistration(entry.detail)) {
+      if (state.faultMessage === entry.detail) setCurrentFault(null)
+      if (!notedBaseFrame) {
+        notedBaseFrame = true
+        pushLog(
+          'warn',
+          '基座坐标系',
+          `规划坐标系是 ${PLANNING_FRAME}，MoveIt 拒收了子坐标系为 ${BASE_FRAME} 的变换。关节轨迹仍会执行，这条不作为当前故障。`,
+        )
+      }
+      return
     }
     if (entry.level === 'error') setCurrentFault(entry.detail)
     pushLog(entry.level, entry.title, entry.detail)
@@ -638,6 +652,10 @@ export function useRosLive(
     sendPose,
     cancelMotion,
   }
+}
+
+function baseFrameRegistration(detail: string) {
+  return /Given transform is to frame 'panda_link0', but frame 'world' was expected/.test(detail)
 }
 
 function mergeRun(move: RunState | null, follow: RunState | null): RunState | null {

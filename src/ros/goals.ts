@@ -158,6 +158,11 @@ export function poseGoal(pose: Pose, frame = PLANNING_FRAME) {
       replan: true,
       replan_attempts: 1,
       replan_delay: 0.1,
+      planning_scene_diff: {
+        is_diff: true,
+        robot_state: { is_diff: true },
+        fixed_frame_transforms: [],
+      },
     },
   }
 }
