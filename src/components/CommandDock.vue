@@ -46,6 +46,7 @@ function onNumber(event: Event, apply: (value: number) => void) {
       <button type="button" class="text-btn" @click="emit('close')">关闭</button>
     </header>
 
+    <div class="command-fields">
     <div>
       <p class="eyebrow">关节目标 · ° · 由「指定关节」下发</p>
       <div class="target-grid">
@@ -78,6 +79,7 @@ function onNumber(event: Event, apply: (value: number) => void) {
           />
         </label>
       </div>
+    </div>
     </div>
 
     <div class="command-actions">

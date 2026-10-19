@@ -128,29 +128,29 @@ const yaw = computed(() => angleAt(0) * 0.06)
         <button type="button" @click="emit('ack')">恢复</button>
       </div>
 
-      <CommandDock
-        v-if="commandOpen"
-        :busy="commandBusy"
-        :note="commandNote"
-        :joints="commandJoints"
-        :pose="commandPose"
-        @close="emit('close-command')"
-        @fill="emit('fill')"
-        @set-joint="(index, value) => emit('set-joint', index, value)"
-        @set-pose="(key, value) => emit('set-pose', key, value)"
-        @joints="emit('joints')"
-        @ready="emit('ready')"
-        @pose="emit('pose')"
-        @stop="emit('stop')"
-      />
-
       <div v-if="!state.connected" class="offline">
         <strong>控制器未连接</strong>
         <p>关节反馈与路径规划已冻结</p>
       </div>
     </div>
 
-    <article class="task-card">
+    <CommandDock
+      v-if="commandOpen"
+      :busy="commandBusy"
+      :note="commandNote"
+      :joints="commandJoints"
+      :pose="commandPose"
+      @close="emit('close-command')"
+      @fill="emit('fill')"
+      @set-joint="(index, value) => emit('set-joint', index, value)"
+      @set-pose="(key, value) => emit('set-pose', key, value)"
+      @joints="emit('joints')"
+      @ready="emit('ready')"
+      @pose="emit('pose')"
+      @stop="emit('stop')"
+    />
+
+    <article v-show="!commandOpen" class="task-card">
       <div>
         <p class="eyebrow">当前任务</p>
         <h3>{{ state.taskName }}</h3>
