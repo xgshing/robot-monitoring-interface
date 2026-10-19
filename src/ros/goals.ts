@@ -1,3 +1,5 @@
+// 组装关节轨迹和 MoveIt 末端目标
+
 import type { Pose } from '../types'
 import { JOINTS } from '../types'
 
@@ -13,16 +15,28 @@ export const MOVE_ACTION = '/move_action'
 export const READY_DEGREES = [0, -45, 0, -135, 0, 90, 45]
 
 export function describeGoal(status: number, values: unknown): string | null {
+  if (typeof values === 'string' && values.trim()) return values
+  const moveit = moveitCode(values)
+  const follow = followCode(values)
   if (status === 4) {
-    const code = moveitCode(values)
-    if (code !== null && code !== 1) return `MoveIt 错误 ${code}`
+    if (moveit !== null && moveit !== 1) return moveitText(moveit)
+    if (follow !== null && follow !== 0) return followText(follow)
     return null
   }
   if (status === 5) return '已取消'
-  const text = typeof values === 'string' ? values : errorString(values)
+  if (moveit !== null && moveit !== 1) return moveitText(moveit)
+  if (follow !== null && follow !== 0) return followText(follow)
+  const text = errorString(values)
   if (text) return text
   if (status === 6) return '动作中止'
   return `动作状态 ${status}`
+}
+
+export function cancelAccepted(values: unknown): boolean | null {
+  if (!values || typeof values !== 'object') return null
+  const code = (values as { return_code?: number }).return_code
+  if (typeof code !== 'number') return null
+  return code === 0 || code === 3
 }
 
 export function jointTargetError(degrees: number[]): string | null {
@@ -58,7 +72,7 @@ export function trajectoryGoal(currentDegrees: number[], targetDegrees: number[]
     seconds,
     args: {
       trajectory: {
-        header: { stamp: { sec: 0, nanosec: 0 }, frame_id: BASE_FRAME },
+        header: { stamp: { sec: 0, nanosec: 0 }, frame_id: '' },
         joint_names: names,
         points: [
           point(current, 0, 0),
@@ -187,7 +201,27 @@ function emptyConstraints() {
 function moveitCode(values: unknown): number | null {
   if (!values || typeof values !== 'object') return null
   const code = (values as { error_code?: { val?: number } }).error_code
-  return typeof code?.val === 'number' ? code.val : null
+  return code && typeof code === 'object' && typeof code.val === 'number' ? code.val : null
+}
+
+function followCode(values: unknown): number | null {
+  if (!values || typeof values !== 'object') return null
+  const code = (values as { error_code?: unknown }).error_code
+  return typeof code === 'number' ? code : null
+}
+
+function moveitText(code: number) {
+  if (code === -2 || code === -31) return 'MoveIt 规划失败：找不到到达该位姿的解'
+  if (code === -4 || code === -5) return 'MoveIt 规划失败：轨迹没有通过检查'
+  return `MoveIt 错误 ${code}`
+}
+
+function followText(code: number) {
+  if (code === -1) return '关节目标被控制器拒绝'
+  if (code === -2) return '关节名称与控制器不一致'
+  if (code === -4) return '运动超出路径容差，控制器已中止'
+  if (code === -5) return '未到达关节目标容差'
+  return `关节轨迹错误 ${code}`
 }
 
 function errorString(values: unknown): string {

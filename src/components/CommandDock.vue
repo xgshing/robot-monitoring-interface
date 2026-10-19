@@ -82,8 +82,8 @@ function onNumber(event: Event, apply: (value: number) => void) {
 
     <div class="command-actions">
       <button type="button" :disabled="busy" @click="emit('fill')">填入当前</button>
-      <button type="button" :disabled="busy" @click="emit('joints')">下发关节</button>
-      <button type="button" :disabled="busy" @click="emit('ready')">回就绪</button>
+      <button type="button" :disabled="busy" @click="emit('joints')">指定关节</button>
+      <button type="button" :disabled="busy" @click="emit('ready')">初始姿态</button>
       <button type="button" :disabled="busy" @click="emit('pose')">规划执行</button>
       <button type="button" class="stop" @click="emit('stop')">停止</button>
     </div>

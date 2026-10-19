@@ -1,3 +1,4 @@
+// WebSocket 客户端：订阅、调用动作、取消目标
 type Listener = (message: unknown) => void
 
 export interface ActionResult {
@@ -36,6 +37,8 @@ export class RosBridgeClient {
   private pending: { reject: (error: Error) => void } | null = null
   private goals = new Map<string, (result: ActionResult) => void>()
   private services = new Map<string, (values: unknown, ok: boolean) => void>()
+  private disconnectListener: (() => void) | null = null
+  private expectClose = false
 
   get connected() {
     return this.socket?.readyState === WebSocket.OPEN
@@ -59,7 +62,14 @@ export class RosBridgeClient {
         reject(new Error('rosbridge 连接失败'))
       }
       socket.onclose = () => {
-        if (this.socket === socket) this.socket = null
+        if (this.socket !== socket) return
+        this.socket = null
+        const dropped = !this.expectClose
+        this.expectClose = false
+        if (dropped) {
+          this.failPending('通信中断')
+          this.disconnectListener?.()
+        }
       }
       socket.onmessage = (event) => {
         try {
@@ -118,8 +128,11 @@ export class RosBridgeClient {
     return { id, result }
   }
 
+  onDisconnect(listener: () => void) {
+    this.disconnectListener = listener
+  }
+
   cancelActionGoal(action: string, id: string) {
-    if (!this.connected) return
     this.send({ op: 'cancel_action_goal', id, action })
   }
 
@@ -150,11 +163,21 @@ export class RosBridgeClient {
   close() {
     const pending = this.pending
     this.pending = null
+    this.expectClose = true
     this.socket?.close()
     this.socket = null
     this.goals.clear()
     this.services.clear()
     pending?.reject(new Error('rosbridge 已关闭'))
+  }
+
+  private failPending(message: string) {
+    this.goals.forEach((finish, id) => {
+      finish({ id, action: '', status: 6, ok: false, values: message })
+    })
+    this.goals.clear()
+    this.services.forEach((finish) => finish(message, false))
+    this.services.clear()
   }
 
   private dispatch(data: Incoming) {

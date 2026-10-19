@@ -59,10 +59,10 @@ ros2 launch rosbridge_server rosbridge_websocket_launch.xml
 
 连上之后，规划结果旁的「控制」可以：
 
-- 下发关节：把七个目标角度发给 `/panda_arm_controller/follow_joint_trajectory`
-- 回就绪：Franka 常用就绪位（J4 为 -135°，不是全零）
+- 指定关节：把七个目标角度发给 `/panda_arm_controller/follow_joint_trajectory`，超出软限位不会下发
+- 初始姿态：Franka 常用初始位（J4 为 -135°，不是全零）
 - 规划执行：把末端目标发给 `/move_action`，规划组 `panda_arm`，由 MoveIt 规划并执行
-- 停止：取消关节控制器和 MoveIt 上正在执行的目标
+- 停止：调用关节控制器和 MoveIt 的 `cancel_goal`。服务没接受时页面会写明停止失败，而不是只改成本地「已停止」
 
 速度比例是 0.2。关节目标超出软限位时不会下发。
 

@@ -14,6 +14,7 @@ import {
 import {
   ARM_GROUP,
   BASE_FRAME,
+  cancelAccepted,
   describeGoal,
   FOLLOW_ACTION,
   jointTargetError,
@@ -46,6 +47,20 @@ export function useRosLive(
   pushLog: (level: LogLevel, title: string, detail: string) => void,
 ) {
   const client = new RosBridgeClient()
+  client.onDisconnect(() => {
+    if (preferSim || state.linkMode !== 'ros') return
+    activeGoal = null
+    command.busy = false
+    state.connected = false
+    state.runState = 'fault'
+    state.taskPhase = '中断'
+    state.plannerStatus = '通信中断'
+    state.plannerOk = false
+    state.faultMessage = '与 rosbridge 的通信中断，无法确认机械臂是否还在运动'
+    command.note = state.faultMessage
+    pushLog('error', '通信中断', url || 'ws://127.0.0.1:9090')
+    schedule()
+  })
   const tf = new Map<string, TfEdge>()
   const seenLogs = new Map<string, number>()
   const url = bridgeUrl()
@@ -360,45 +375,56 @@ export function useRosLive(
     command.pose[key] = value
   }
 
-  async function sendJointTarget(degrees = command.joints, title = '关节目标') {
+  async function sendJointTarget(degrees = command.joints, title = '指定关节') {
     const problem = jointTargetError(degrees)
     if (problem) {
       command.note = problem
+      state.faultMessage = problem
       pushLog('warn', '目标未下发', problem)
       return
     }
     if (state.linkMode !== 'ros' || !client.connected) {
-      command.note = '先连上 rosbridge'
+      command.note = '先连上 rosbridge，才能把关节目标发给控制器'
+      state.faultMessage = command.note
+      pushLog('error', '目标未下发', command.note)
       return
     }
-    const goal = trajectoryGoal(
-      state.joints.map((joint) => joint.angle),
-      degrees,
-    )
+    const current = state.joints.map((joint) => joint.angle)
+    if (current.some((angle) => !Number.isFinite(angle))) {
+      command.note = '还没有收到 /joint_states，不能从未知姿态出发'
+      state.faultMessage = command.note
+      pushLog('error', '目标未下发', command.note)
+      return
+    }
+    const goal = trajectoryGoal(current, degrees)
     command.joints = degrees.map((value) => Number(value.toFixed(2)))
     state.taskName = title
     state.taskPhase = '下发'
     state.plannerName = 'FollowJointTrajectory'
     state.plannerStatus = '执行中'
     state.plannerOk = true
-    command.note = `${title}已下发，约 ${goal.seconds.toFixed(1)} s`
+    state.faultMessage = null
+    command.note = `${title}已发给关节控制器，约 ${goal.seconds.toFixed(1)} s`
     pushLog('info', `下发${title}`, `panda_arm_controller · ${goal.seconds.toFixed(1)} s`)
     await runGoal(FOLLOW_ACTION, 'control_msgs/action/FollowJointTrajectory', goal.args, 20000)
   }
 
   function sendReady() {
-    void sendJointTarget(READY_DEGREES, '就绪位')
+    void sendJointTarget(READY_DEGREES, '初始姿态')
   }
 
   async function sendPose() {
     const problem = poseTargetError(command.pose)
     if (problem) {
       command.note = problem
+      state.faultMessage = problem
       pushLog('warn', '位姿未下发', problem)
       return
     }
     if (state.linkMode !== 'ros' || !client.connected) {
-      command.note = '先连上 rosbridge'
+      command.note = '先连上 rosbridge，才能把末端目标交给 MoveIt'
+      state.faultMessage = command.note
+      pushLog('error', '位姿未下发', command.note)
       return
     }
     state.taskName = '末端位姿'
@@ -406,7 +432,8 @@ export function useRosLive(
     state.plannerName = 'MoveIt'
     state.plannerStatus = '规划中'
     state.plannerOk = true
-    command.note = `正在让 ${ARM_GROUP} 规划 panda_hand`
+    state.faultMessage = null
+    command.note = `正在让 ${ARM_GROUP} 规划 panda_hand，规划成功后才会执行`
     pushLog(
       'info',
       '请求 MoveIt 规划',
@@ -445,6 +472,8 @@ export function useRosLive(
       command.note = message
       state.plannerStatus = '失败'
       state.plannerOk = false
+      state.faultMessage = message
+      state.taskPhase = '故障'
       pushLog('error', '动作失败', message)
     } finally {
       if (ticket === motionTicket) {
@@ -454,27 +483,57 @@ export function useRosLive(
     }
   }
 
-  function cancelMotion() {
+  async function cancelMotion() {
     motionTicket += 1
-    command.busy = false
     const current = activeGoal
     activeGoal = null
-    if (current) client.cancelActionGoal(current.action, current.id)
+    command.busy = false
+    if (state.linkMode !== 'ros' || !client.connected) {
+      command.note = '未连接 rosbridge，不能取消控制器上的目标'
+      state.faultMessage = command.note
+      pushLog('error', '停止失败', command.note)
+      return
+    }
+    let bridgeCancel = false
+    if (current) {
+      try {
+        client.cancelActionGoal(current.action, current.id)
+        bridgeCancel = true
+      } catch {
+        bridgeCancel = false
+      }
+    }
     const cancelAll = {
       goal_info: {
         goal_id: { uuid: Array.from({ length: 16 }, () => 0) },
         stamp: { sec: 0, nanosec: 0 },
       },
     }
-    void client
-      .callService(`${FOLLOW_ACTION}/_action/cancel_goal`, 'action_msgs/srv/CancelGoal', cancelAll)
-      .catch(() => undefined)
-    void client
-      .callService(`${MOVE_ACTION}/_action/cancel_goal`, 'action_msgs/srv/CancelGoal', cancelAll)
-      .catch(() => undefined)
-    command.note = '已请求停止关节控制器和 MoveIt'
+    const results = await Promise.allSettled([
+      client.callService(`${FOLLOW_ACTION}/_action/cancel_goal`, 'action_msgs/srv/CancelGoal', cancelAll),
+      client.callService(`${MOVE_ACTION}/_action/cancel_goal`, 'action_msgs/srv/CancelGoal', cancelAll),
+    ])
+    const accepted = results.some(
+      (result) => result.status === 'fulfilled' && cancelAccepted(result.value) === true,
+    )
+    const answered = results.some((result) => result.status === 'fulfilled')
+    if (!accepted && !answered && !bridgeCancel) {
+      command.note = '停止失败：关节控制器和 MoveIt 都没有接受取消'
+      state.faultMessage = command.note
+      state.plannerStatus = '停止失败'
+      state.plannerOk = false
+      state.taskPhase = '故障'
+      pushLog('error', '停止失败', command.note)
+      return
+    }
+    state.faultMessage = null
     state.taskPhase = '停止'
-    pushLog('warn', '已请求停止', '取消本页和正在执行的关节、规划目标')
+    state.plannerStatus = accepted ? '正在取消' : '已请求取消'
+    state.plannerOk = true
+    command.note = accepted
+      ? '控制器已接受取消，等待关节停稳'
+      : '已向关节控制器和 MoveIt 发送取消'
+    pushLog('warn', '已请求停止', command.note)
   }
 
   function toggleLink() {
