@@ -1,6 +1,6 @@
 # Franka Panda 仿真监控与控制
 
-浏览器里的七轴监控台。它读取已经在运行的 Gazebo / MoveIt，下发关节目标或末端目标，并把规划与执行结果写回同一页面。本仓库是这个前端，不含 Gazebo 世界、MoveIt 配置，也没有单独的机器人后端。
+七轴 Franka Panda 浏览器监控台。它读取已经在运行的 Gazebo / MoveIt，下发关节目标或末端目标，并把规划与执行结果写回同一页面。本仓库是这个前端，不含 Gazebo 世界、MoveIt 配置，也没有单独的机器人后端。
 
 公开代码：<https://github.com/xgshing/robot-monitoring-interface>
 
