@@ -4,6 +4,8 @@ Franka Panda 监控控制台。页面按工业监控台的深色版面组织：�
 
 浏览器不能直接加入 ROS 2 的 DDS。页面通过 rosbridge 的 WebSocket 读取已经在跑的 Gazebo / MoveIt；连不上时继续用模拟循环。连上后可以下发关节轨迹、就绪位和 MoveIt 末端目标。
 
+简历用的架构图、技术说明、截图和启动步骤在 [docs/简历材料.md](docs/简历材料.md)。
+
 ![Franka Panda 监控控制台](docs/screenshot-console.png)
 
 ## 运行页面

@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="680" viewBox="0 0 1200 680" role="img" aria-labelledby="title desc">
+  <title id="title">Franka Panda 仿真监控与控制</title>
+  <desc id="desc">浏览器通过 rosbridge WebSocket 连接已有的 Gazebo、关节控制器和 MoveIt。项目本身没有单独的机器人后端。</desc>
+  <style>
+    text { font-family: "WenQuanYi Micro Hei", "Noto Sans SC", sans-serif; fill: #1c2430; }
+    .h { font-size: 20px; font-weight: 700; }
+    .sub { font-size: 13px; fill: #5c6b80; }
+    .box-title { font-size: 15px; font-weight: 700; }
+    .item { font-size: 13px; }
+    .tiny { font-size: 12px; fill: #5c6b80; }
+    .on-dark { fill: #f4f7fb; }
+    .on-dark-sub { fill: #c5d0de; }
+  </style>
+  <rect width="1200" height="680" fill="#f4f6f8"/>
+  <text x="40" y="42" class="h">Franka Panda 仿真监控与控制</text>
+  <text x="40" y="66" class="sub">浏览器控制台到 rosbridge，再到已经运行的 ROS 2。本仓库不含 Gazebo 世界、MoveIt 配置或独立后端。</text>
+
+  <rect x="40" y="96" width="1120" height="168" rx="16" fill="#1c2430"/>
+  <text x="64" y="128" class="box-title on-dark">浏览器监控台</text>
+  <text x="188" y="128" class="tiny on-dark-sub">Vue 3 / TypeScript / Vite / 端口 47321</text>
+  <g>
+    <rect x="64" y="148" width="250" height="88" rx="10" fill="#2a3548"/>
+    <text x="80" y="176" class="item on-dark">七轴角度与曲线</text>
+    <text x="80" y="198" class="tiny on-dark-sub">ECharts，来自 /joint_states</text>
+    <text x="80" y="216" class="tiny on-dark-sub">弧度换算为角度</text>
+  </g>
+  <g>
+    <rect x="330" y="148" width="250" height="88" rx="10" fill="#2a3548"/>
+    <text x="346" y="176" class="item on-dark">Panda 三维模型</text>
+    <text x="346" y="198" class="tiny on-dark-sub">Three.js，Gazebo 浅灰网格</text>
+    <text x="346" y="216" class="tiny on-dark-sub">姿态来自同一组关节角</text>
+  </g>
+  <g>
+    <rect x="596" y="148" width="270" height="88" rx="10" fill="#2a3548"/>
+    <text x="612" y="176" class="item on-dark">控制、位姿与执行记录</text>
+    <text x="612" y="198" class="tiny on-dark-sub">关节目标、末端目标、停止</text>
+    <text x="612" y="216" class="tiny on-dark-sub">当前错误与历史记录分开</text>
+  </g>
+  <g>
+    <rect x="882" y="148" width="250" height="88" rx="10" fill="#243528"/>
+    <text x="898" y="176" class="item on-dark">未连接时的演示循环</text>
+    <text x="898" y="198" class="tiny on-dark-sub">只在页面内生成示意数据</text>
+    <text x="898" y="216" class="tiny on-dark-sub">连上 rosbridge 后停止</text>
+  </g>
+
+  <line x1="600" y1="264" x2="600" y2="300" stroke="#8ea0b8" stroke-width="2"/>
+  <polygon points="600,308 594,296 606,296" fill="#8ea0b8"/>
+  <text x="614" y="292" class="tiny">WebSocket JSON，ws://127.0.0.1:9090</text>
+
+  <rect x="360" y="312" width="480" height="56" rx="12" fill="#ffffff" stroke="#d5deea"/>
+  <text x="384" y="336" class="box-title">rosbridge_suite</text>
+  <text x="384" y="354" class="tiny">话题订阅、动作目标、cancel_goal。页面自写客户端，不使用 roslib。</text>
+
+  <line x1="600" y1="368" x2="600" y2="404" stroke="#8ea0b8" stroke-width="2"/>
+  <polygon points="600,412 594,400 606,400" fill="#8ea0b8"/>
+
+  <rect x="40" y="416" width="1120" height="220" rx="16" fill="#ffffff" stroke="#d5deea"/>
+  <text x="64" y="448" class="box-title">已有的 ROS 2 仿真</text>
+  <text x="230" y="448" class="tiny">不在本仓库内。页面只连接已经 source 且 ROS_DOMAIN_ID 一致的系统。</text>
+
+  <g>
+    <rect x="64" y="468" width="340" height="140" rx="12" fill="#f7f9fb" stroke="#e1e7ef"/>
+    <text x="80" y="496" class="box-title">读回</text>
+    <text x="80" y="522" class="item">/joint_states</text>
+    <text x="80" y="544" class="item">/tf 与 /tf_static</text>
+    <text x="80" y="566" class="item">/display_planned_path</text>
+    <text x="80" y="588" class="item">/rosout 与动作状态</text>
+  </g>
+  <g>
+    <rect x="424" y="468" width="360" height="140" rx="12" fill="#f7f9fb" stroke="#e1e7ef"/>
+    <text x="440" y="496" class="box-title">下发</text>
+    <text x="440" y="524" class="item">指定关节、初始姿态</text>
+    <text x="440" y="546" class="tiny">/panda_arm_controller/follow_joint_trajectory</text>
+    <text x="440" y="572" class="item">末端目标，规划执行</text>
+    <text x="440" y="594" class="tiny">/move_action，规划组 panda_arm，坐标系 world</text>
+  </g>
+  <g>
+    <rect x="804" y="468" width="328" height="140" rx="12" fill="#f7f9fb" stroke="#e1e7ef"/>
+    <text x="820" y="496" class="box-title">仿真侧</text>
+    <text x="820" y="524" class="item">Gazebo 中的 Panda</text>
+    <text x="820" y="546" class="item">关节轨迹控制器</text>
+    <text x="820" y="568" class="item">MoveIt 2</text>
+    <text x="820" y="590" class="tiny">取消走 cancel_goal，不以页面状态代替</text>
+  </g>
+</svg>
