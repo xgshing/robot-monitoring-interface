@@ -1,5 +1,18 @@
 {
   "editor.tokenColorCustomizations": {
-    "comments": "#B8B8B8"
+    "comments": "#B8B8B8",
+    "textMateRules": [
+      {
+        "scope": ["comment", "comment.line", "comment.block", "punctuation.definition.comment"],
+        "settings": {
+          "foreground": "#B8B8B8"
+        }
+      }
+    ]
+  },
+  "editor.semanticTokenColorCustomizations": {
+    "rules": {
+      "comment": "#B8B8B8"
+    }
   }
 }

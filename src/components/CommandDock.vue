@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 「控制」面板：下发关节、回就绪、规划执行、停止
 import type { Pose } from '../types'
 import { JOINTS } from '../types'
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 中间舞台、告警标签、任务、位姿、规划结果
 import { computed, ref } from 'vue'
 import CommandDock from './CommandDock.vue'
 import PandaArm from './PandaArm.vue'

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 用 Three.js 按七个关节角摆出 Panda 网格
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as THREE from 'three'
 import { ColladaLoader } from 'three/examples/jsm/loaders/ColladaLoader.js'

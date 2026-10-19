@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 底部执行记录，可只看错误、确认告警
 import { computed, ref } from 'vue'
 import type { ConsoleState } from '../types'
 

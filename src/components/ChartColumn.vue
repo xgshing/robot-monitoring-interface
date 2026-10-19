@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 右侧 ECharts 关节曲线和转速曲线
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as echarts from 'echarts'
 import { formatNum } from '../format'

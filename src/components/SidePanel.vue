@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 相机卡片、主轴转速、柜内温度和驱动温度
 import { ref } from 'vue'
 import { formatNum } from '../format'
 import type { ConsoleState } from '../types'

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 顶栏：红绿灯、地址、时钟、机器人名称
 defineProps<{
   clock: string
   connected: boolean

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 左侧七个关节的数值
 import { formatNum, formatSigned, jointRatio } from '../format'
 import type { ConsoleState } from '../types'
 import { JOINTS } from '../types'
