@@ -144,6 +144,14 @@ export function useRosLive(
     state.plannerStatus = '等待规划'
     state.plannerOk = true
     state.faultMessage = null
+    state.pins.base.count = 0
+    state.pins.base.note = '连接后暂无'
+    state.pins.shoulder.count = 0
+    state.pins.shoulder.note = '连接后暂无'
+    state.pins.elbow.count = 0
+    state.pins.elbow.note = '连接后暂无'
+    state.pins.errors.count = 0
+    state.pins.errors.note = '连接后暂无错误'
     primed = false
     lastJointAt = 0
     lastPlanKey = ''
@@ -172,6 +180,7 @@ export function useRosLive(
       rpmCount += 1
     })
     if (rpmCount > 0) state.avgRpm = rpmSum / rpmCount
+    refreshLimitPins()
     let penalty = state.runState === 'fault' ? 70 : 0
     state.joints.forEach((joint, index) => {
       const spec = JOINTS[index]
@@ -188,6 +197,34 @@ export function useRosLive(
       emerg0 = Math.max(1, state.emergencies)
     }
     refreshDeltas()
+  }
+
+  function refreshLimitPins() {
+    const pins = [
+      { key: 'base' as const, index: 0 },
+      { key: 'shoulder' as const, index: 1 },
+      { key: 'elbow' as const, index: 2 },
+    ]
+    pins.forEach((pin) => {
+      const spec = JOINTS[pin.index]
+      const angle = state.joints[pin.index]?.angle
+      const target = state.pins[pin.key]
+      if (!Number.isFinite(angle)) {
+        target.count = 0
+        target.note = '尚未收到关节角'
+        return
+      }
+      const span = spec.max - spec.min
+      const remaining = Math.min(angle - spec.min, spec.max - angle)
+      const margin = span > 0 ? remaining / span : 1
+      if (margin < 0.12) {
+        target.count = 1
+        target.note = `${spec.id} ${angle.toFixed(1)}°，距软限位还剩 ${(margin * 100).toFixed(0)}%`
+        return
+      }
+      target.count = 0
+      target.note = `${spec.id} ${angle.toFixed(1)}°，在软限位内`
+    })
   }
 
   function onPlan(message: unknown) {
@@ -546,6 +583,10 @@ export function useRosLive(
       state.connected = true
       state.robotName = 'Franka Panda'
       state.runState = 'running'
+      state.pins.base = { count: 3, note: '基座振动超过 0.8 mm/s' }
+      state.pins.shoulder = { count: 2, note: 'J2 电流较基线偏高 6%' }
+      state.pins.elbow = { count: 13, note: '本班次肘部温度告警 13 次' }
+      state.pins.errors = { count: 6, note: '腕部跟随误差，已自动复位 6 次' }
       state.faultMessage = null
       state.latencyMs = 18
       command.open = false
