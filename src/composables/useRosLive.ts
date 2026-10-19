@@ -1,3 +1,5 @@
+// 连接 rosbridge、订阅话题、发送和取消动作
+
 import { onMounted, onUnmounted, reactive } from 'vue'
 import { formatClock } from '../format'
 import {

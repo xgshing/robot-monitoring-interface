@@ -1,3 +1,5 @@
+// 生成模拟关节、任务和日志，供未连接时使用
+
 import { onMounted, onUnmounted, reactive } from 'vue'
 import { formatClock } from '../format'
 import type { ConsoleState, JointReading, LedTone, LogLevel, PhaseKind, Pose } from '../types'
