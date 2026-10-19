@@ -47,7 +47,7 @@ function onNumber(event: Event, apply: (value: number) => void) {
     </header>
 
     <div>
-      <p class="eyebrow">关节目标 · °</p>
+      <p class="eyebrow">关节目标 · ° · 由「指定关节」下发</p>
       <div class="target-grid">
         <label v-for="(spec, index) in JOINTS" :key="spec.id">
           <span>{{ spec.id }}</span>
@@ -65,7 +65,7 @@ function onNumber(event: Event, apply: (value: number) => void) {
     </div>
 
     <div>
-      <p class="eyebrow">末端目标 · mm / °，相对 panda_link0</p>
+      <p class="eyebrow">末端目标 · mm / ° · 相对 panda_link0 · 由「规划执行」下发</p>
       <div class="target-grid pose-grid">
         <label v-for="field in poseFields" :key="field.key">
           <span>{{ field.label }}</span>

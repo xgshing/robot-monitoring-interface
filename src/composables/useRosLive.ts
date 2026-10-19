@@ -484,19 +484,42 @@ export function useRosLive(
       pushLog('error', '位姿未下发', command.note)
       return
     }
+    if (poseAlreadyReached(command.pose, state.target)) {
+      const edited = jointFieldsDiffer(
+        command.joints,
+        state.joints.map((joint) => joint.angle),
+      )
+      command.note = edited
+        ? '末端目标就是当前位姿，MoveIt 不会再动。改过的关节角要点「指定关节」才会下发。'
+        : '末端目标与当前位姿相同，没有新的运动。'
+      state.taskName = '末端位姿'
+      state.taskPhase = '未下发'
+      state.plannerName = 'MoveIt'
+      state.plannerStatus = '已在目标'
+      state.plannerOk = true
+      pushLog('warn', '未规划', command.note)
+      return
+    }
     state.taskName = '末端位姿'
     state.taskPhase = '规划'
     state.plannerName = 'MoveIt'
     state.plannerStatus = '规划中'
     state.plannerOk = true
     setCurrentFault(null)
-    command.note = `正在让 ${ARM_GROUP} 按 ${PLANNING_FRAME} 规划 panda_hand，规划成功后才会执行`
+    command.note = `正在让 ${ARM_GROUP} 按 ${PLANNING_FRAME} 规划 panda_hand。关节输入框不参与这次规划。`
     pushLog(
       'info',
       '请求 MoveIt 规划',
       `${BASE_FRAME} 目标已变换到 ${PLANNING_FRAME}：${planningPose.x.toFixed(0)}, ${planningPose.y.toFixed(0)}, ${planningPose.z.toFixed(0)} mm`,
     )
+    const before = state.joints.map((joint) => joint.angle)
     await runGoal(MOVE_ACTION, 'moveit_msgs/action/MoveGroup', poseGoal(planningPose), 60000)
+    if (command.note === '动作已完成' && !armMoved(before, state.joints.map((joint) => joint.angle))) {
+      command.note = 'MoveIt 返回成功，但七个关节都没有动，模型保持原位。'
+      state.plannerStatus = '未移动'
+      state.plannerOk = true
+      pushLog('warn', '模型未动', command.note)
+    }
   }
 
   async function runGoal(action: string, actionType: string, args: unknown, timeoutMs: number) {
@@ -652,6 +675,29 @@ export function useRosLive(
     sendPose,
     cancelMotion,
   }
+}
+
+function poseAlreadyReached(pose: Pose, current: Pose) {
+  const gap = Math.hypot(pose.x - current.x, pose.y - current.y, pose.z - current.z)
+  const turn = Math.max(
+    angleGap(pose.rx, current.rx),
+    angleGap(pose.ry, current.ry),
+    angleGap(pose.rz, current.rz),
+  )
+  return gap <= 8 && turn <= 5
+}
+
+function jointFieldsDiffer(degrees: number[], actual: number[]) {
+  return degrees.some((value, index) => Math.abs(value - actual[index]) > 0.5)
+}
+
+function armMoved(before: number[], after: number[]) {
+  return after.some((angle, index) => Math.abs(angle - before[index]) > 0.8)
+}
+
+function angleGap(a: number, b: number) {
+  const raw = Math.abs(a - b) % 360
+  return raw > 180 ? 360 - raw : raw
 }
 
 function baseFrameRegistration(detail: string) {
